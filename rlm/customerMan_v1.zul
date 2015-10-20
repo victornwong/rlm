@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?page id="cusoetmanthing"?>
+<zk>
+<zscript src="rglobal/rglobal.zs" />
+<zscript src="rglobal/formMaker_v1.zs" />
+<zscript src="rglobal/rlmsql.zs" />
+<zscript>
+<![CDATA[
+MYTITLE = "Customer Management";
+MYVERSION = "v0.1";
+MYPANEL = "custapmerpanel";
+/**
+ * @title Purchase requisition and order things - next-gen
+ * @author Victor Wong
+ * @since 09/09/2015
+ * @notes
+*/
+import java.util.*;
+import java.text.*;
+import java.io.*;
+import java.sql.*;
+import java.sql.Date;
+import java.lang.Float;
+import groovy.sql.Sql;
+import org.zkoss.zk.ui.*;
+import org.zkoss.zk.zutl.*;
+import java.math.BigDecimal;
+import java.awt.Color;
+import org.zkoss.util.media.AMedia;
+import org.zkoss.zul.*;
+import org.apache.poi.hssf.usermodel.*;
+import org.apache.poi.hssf.util.*;
+import org.apache.poi.ss.util.*;
+import org.victor.*;
+sechand = new SecurityFuncs();
+myincludeid = Executions.getCurrent().getParameter("myid");
+//useraccessobj = sechand.getUserAccessObject();
+//if(useraccessobj == null) Executions.sendRedirect(MAINLOGIN_PAGE);
+
+kiboo = new Generals(); sqlhand = new SqlFuncs(); lbhand = new ListboxHandler();
+guihand = new GuiFuncs(); luhand = new LookupFuncs(); dmshand = new DMSFuncs();
+gridhand = new GridHandler(); ngfun = new NGfuncs(); rwsqlfun = new RWMS_sql();
+
+SUPP_FORM_STYLE = "background:#1D7FDA";
+MPFPOP_BACKGROUND = "background:#D66A0E";
+
+LIMIT_SUPPLIERS_LOADING = " limit 100"; // used in supplierfunc.zs
+ISACTIVE_SUPPLIER_LOADING = ""; // set this in other modu to get active supplier only: and IsActive=1
+
+//items_need_update = false;
+
+]]>
+</zscript>
+
+<popup id="adminpop">
+	<div sclass="shadowbox" style="background:#CE1313">
+		<vbox>
+			<button id="setdraftpo_b" label="Set draft" onClick="" />
+			<button id="settoday_b" label="Set today" onClick="" />
+			<button id="delpo_b" label="DELETE" onClick="" />
+		</vbox>
+	</div>
+</popup>
+
+<style src="/real-world.css" />
+<style>
+	.GridLayoutNoBorder tr.z-row td.z-row-inner, tr.z-row .z-cell, div.z-grid
+	{
+		border: none; overflow: hidden; zoom: 1;
+		border-top: none; border-left: none; border-right: none; border-bottom: none;
+	}
+	.wbo { font-size:9px;color:#ffffff;font-weight:bold }
+</style>
+
+<div width="1000px" style="opacity: 0.8;" >
+<panel id="${MYPANEL}" title="${MYTITLE} ${MYVERSION}" border="normal" collapsible="true" closable="true" >
+<panelchildren style="background:#0C203E">
+	<div sclass="shadowbox" style="background:#6991B8">
+		<hbox>
+			<button label="List" sclass="k9mo" onClick="" />
+		</hbox>
+		<separator height="3px" />
+		<div id="customersholder" />
+	</div>
+	<separator height="3px" />
+	<div id="workarea" sclass="shadowbox" style="background:#2F6B9C">
+	</div>
+<zscript>
+<![CDATA[
+
+]]>
+</zscript>
+</panelchildren>
+</panel>
+</div>
+</zk>
+

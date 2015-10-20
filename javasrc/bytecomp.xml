@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<project name="Bytecompiled things" default="info">
+
+<property name="web.dir" value="/var/lib/tomcat7/webapps/rlm/WEB-INF" />
+<property name="src.dir" value="." />
+<property name="deploy.dir" value="${web.dir}/classes" />
+<property name="build.dir" value="./build" />
+<property name="jarname" value="vicutils.jar" />
+<property name="jar.dir" value="jar" />
+<property name="name" value="KingsCross_core_things - compiling for webuser" />
+<property name="testclass" value="org.victor.TestMeCode" />
+
+<path id="master-classpath">
+	<fileset dir="${web.dir}/lib">
+		<include name="*.jar"/>
+	</fileset>
+	<pathelement path="${build.dir}"/>
+</path>
+
+<target name="info">
+	<echo message="${name} ANT build" />
+	<echo message="build : just build" />
+	<echo message="build-jar : make the jar" />
+	<echo message="deploy-jar : deploy into WEB-INF" />
+	<echo message="clean : clean-up" />
+	<echo message="run : run TestMeCode()" />
+	<echo message="restart : restart Tombat" />
+</target>
+
+<target name="build" description="Compile source java files">
+	<javac destdir="${build.dir}" includeantruntime="false" target="1.6" source="1.6" >
+		<src path="${src.dir}" />
+		<classpath refid="master-classpath"/>
+	</javac>
+</target>
+
+<target name="build-jar" depends="build" >
+	<jar destfile="${jar.dir}/${jarname}"
+		basedir="${build.dir}"
+		includes="**"
+		excludes="**/Test.class">
+		<manifest>
+			<attribute name="Main-Class" value="${testclass}" />
+		</manifest>
+	</jar>
+</target>
+
+<target name="run">
+	<java classname="${testclass}" fork="true">
+		<classpath>
+			<path refid="master-classpath" />
+			<path location="${build.dir}/${jarname}" />
+		</classpath>
+	</java>
+</target>
+
+<target name="clean" description="Clean output directories">
+	<delete>
+		<fileset dir="${build.dir}">
+			<include name="**/*.class"/>
+			<include name="**/*.jar" />
+		</fileset>
+	</delete>
+</target>
+
+<target name="deploy-jar" depends="build-jar" description="Deploy JAR">
+	<copy file="${jar.dir}/${jarname}" tofile="${web.dir}/lib/${jarname}" overwrite="true" />
+<!--
+	<copy todir="${web.dir}/lib" preservelastmodified="true">
+		<fileset dir="${web.dir}">
+			<include name="**/*.*"/>
+		</fileset>
+	</copy>
+-->
+</target>
+
+<target name="restart">
+	<exec executable="sudo">
+		<arg value="/etc/init.d/tomcat7"/>
+		<arg value="restart"/>
+	</exec>
+</target>
+
+
+</project>

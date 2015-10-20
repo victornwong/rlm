@@ -1,0 +1,734 @@
+<<<<<<< HEAD
+=======
+// from soaProcessor_v2.zul
+// itype: 1=with narration, 2=no narration
+void generateExcelSOA(int itype)
+{
+	org.apache.poi.hssf.usermodel.HSSFRow checkrow;
+	Cell kcell;
+	startscan = 9;
+	pgadder = 4; page_break = 28; page2_break = 46;
+
+	soaData.clear();
+	try
+	{
+		if(mainUpload_Data == null) return;
+		if(mainUpload_Data.thefiledata == null) return;
+	}
+	catch (Exception e) { guihand.showMessageBox("ERR: invalid worksheet"); return; }
+
+	try
+	{
+		//ByteArrayInputStream mybytes = new ByteArrayInputStream(mainUpload_Data.thefiledata);
+		inps = null;
+
+		if(!(mainUpload_Data.thefiledata instanceof java.io.ByteArrayInputStream))
+			inps = new ByteArrayInputStream(mainUpload_Data.thefiledata);
+		else
+			inps = mainUpload_Data.thefiledata;
+
+		HSSFWorkbook excelWB = new HSSFWorkbook(inps);
+		FormulaEvaluator evaluator = excelWB.getCreationHelper().createFormulaEvaluator();
+		numsheets = excelWB.getNumberOfSheets();
+		sheet = excelWB.getSheetAt(0);
+		numrows = sheet.getPhysicalNumberOfRows();
+
+		numc = 0;
+		FOC6_COL_READ = 10;
+		soa_inv_total = soa_recp_total = soa_balance_total = "";
+		
+		// hardcoded to read company-name from B9
+		/*
+		checkrow = sheet.getRow(8);
+		kcell = checkrow.getCell(1);
+		compname = POI_GetCellContentString(kcell,evaluator,"#").trim();
+		compname = compname.replaceAll(" \\/","_");
+		*/
+
+		for(rw=startscan; rw<numrows; rw++) // hardcoded to read from "startrow" onwards..
+		{
+			String[] thed = new String[9];
+			checkrow = sheet.getRow(rw);
+			
+			for(rc=1; rc<FOC6_COL_READ; rc++)
+			{
+				kcell = checkrow.getCell(rc);
+				if(kcell != null)
+				{
+					thed[rc-1] = POI_GetCellContentString(kcell,evaluator,"#.00").trim();
+				}
+				else
+					thed[rc-1] = "";
+			}
+
+			if(thed[1].equals("Total"))
+			{
+				soa_inv_total = thed[4];
+				soa_recp_total = thed[5];
+				soa_balance_total = thed[6];
+			}
+
+			if(thed[0].equals("")) break;
+			//soaObj ikdo = new soaObj(thed[0],thed[1],thed[2],thed[3],thed[4],thed[5],thed[6]);
+			soaData.add(thed);
+			numc++;
+		}
+	}
+	catch (java.io.IOException e)
+	{
+		guihand.showMessageBox("ERR: Cannot parse worksheet");
+		return;
+	}
+
+	wkarray = soaData.toArray();
+	dbg = "";
+	for(i=0;i<wkarray.length;i++)
+	{
+		m = wkarray[i];
+		for(k=0; k<m.length; k++)
+		{
+			dbg += m[k] + " :: ";
+		}
+		dbg += "\n";
+	}
+
+	dbg += "\nsoa_inv_total = " + soa_inv_total + " :: soa_recp_total = " + soa_recp_total + " :: soa_balance_total = " + soa_balance_total;
+	debugbox.setValue(dbg);
+	return;
+
+	custdetstr = "";
+	custr = getFocus_CustomerRec(global_selected_customerid); // prep customer-details
+	if(custr != null)
+	{
+		custdetstr = custr.get("name") + "\n" +
+		custr.get("address1yh") + ", " + custr.get("address2yh") + "\n" +
+		custr.get("address3yh") + ", " + custr.get("address4yh") + "\n" +
+		"Contact: " + custr.get("contactyh") + "\n" +
+		"Tel: " + custr.get("telyh") + " Fax: " + custr.get("faxyh");
+		// + "\nDeliverTo: " + custr.get("deliverytoyh") + "\n" +
+		//"Customer Email: " + custr.get("emailyh") + "\nSalesRep: " + custr.get("salesrepyh");
+	}
+
+	compname = custr.get("name");
+	templatefn = "rwimg/soaTemplate_2.xls";
+
+	inpfn = session.getWebApp().getRealPath(templatefn);
+	InputStream inp = new FileInputStream(inpfn);
+	Workbook wwb = WorkbookFactory.create(inp);
+	Sheet wsheet = wwb.getSheetAt(0);
+	FormulaEvaluator evaluator = wwb.getCreationHelper().createFormulaEvaluator();
+	org.apache.poi.hssf.usermodel.HSSFRow mainhdrow = wsheet.getRow(3);
+	Font wfont = wwb.createFont(); wfont.setFontHeightInPoints((short)8); wfont.setFontName("Arial");
+	Font nfont = wwb.createFont(); nfont.setFontHeightInPoints((short)6); nfont.setFontName("Arial"); // narration-font
+
+	wkarray = soaData.toArray();
+	
+	sttd = kiboo.getDateFromDatebox(statement_date);
+	sttds = "Statement date: " + sttd;
+	dfints = "Late payment charges: " + customer_interest.getValue() + "%";
+
+	excelInsertString(wsheet,0,0,custdetstr); // insert customer-det into worksheet
+	excelInsertString(wsheet,0,8,sttds); // insert statement date
+	excelInsertString(wsheet,0,5,dfints); // insert interest rate
+
+	if(itype == 2) excelInsertString(wsheet,3,8,""); // remove "Narration" for no-narration type
+
+	rowcounter = 0;
+	totalinterest = 0.0;
+	sumundef = sum0_30 = sum31_60 = sum61_90 = sum91_120 = sum121_150 = sum150_on = 0.0;
+	unadjcred = 0.0;
+
+	//debugbox.setValue(debugbox.getValue() + "\nD> wkarray = " + wkarray.length.toString());
+	//debugbox.setValue(debugbox.getValue() + "\nD> insert -30days" );
+
+	for(i=0;i<wkarray.length;i++)
+	{
+		Date invdate, duedate;
+
+		wop = wkarray[i];
+		pgbreakd = false;
+		//if(wop[0].equals("Unadjusted credits")) { unadjusted = wop; continue; }
+		/*
+		debugbox.setValue(debugbox.getValue() + "\nD> wop = " + wop[0] + " : " + wop[1] + " : " + wop[2] + " : " + 
+		wop[3] + " : " + wop[4] + " : " + wop[5] + " : "
+		);
+		*/
+
+		chkrwi = "";
+		try { chkrwi = (wop[0].substring(0,3)).toUpperCase(); }
+		catch (Exception e) {}
+
+		currentrow = pgadder + rowcounter;
+
+		tmprwi = "";
+		try { tmprwi = wop[0].replaceAll("RWI:",""); } catch (Exception e) {}
+
+		POI_CellSetAllBorders(wwb,excelInsertString(wsheet,currentrow,0,tmprwi),wfont,true,"");
+
+		invdstr = "";
+		if(!wop[1].equals("") && wop[1] != null)
+		{
+			invdate = (Date)dtfm.parse(wop[1]);
+			invdstr = dtfm.format(invdate);
+		}
+
+		//excelInsertString(wsheet,pgadder+i,1,invdstr);
+		duedstr = ""; duedate = new Date();
+
+		try {
+		duedate = (Date)dtfm.parse(wop[3]);
+		duedstr = dtfm.format(duedate);
+		} catch (Exception e) {}
+
+		kstr = duedstr; // default to invoice-due-date
+		//if(!chkrwi.equals("RWI")) kstr = invdstr; // wop[1]; // if it's an RWI, use RWI date instead TODO
+		POI_CellSetAllBorders(wwb,excelInsertString(wsheet,currentrow,1,kstr),wfont,true,"");
+
+		for(j=4;j<7;j++) // inv-amt, receipt, balance
+		{
+			vak = 0;
+			try { vak = Float.parseFloat(wop[j]); } catch (Exception e) {}
+			if(vak < 0) vak = vak * -1;
+			kstr = (vak == 0) ? "" : vak.toString();
+			wop[j] = kstr; 
+
+			POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,currentrow,j-2,wop[j]),wfont,true,"");
+			//excelInsertString(wsheet,currentrow,j+1,wop[j]);
+			//debugbox.setValue( debugbox.getValue() + "\nIRB> wop " + j.toString() + " = " + wop[j] );
+		}
+
+		dydff = calcDayDiff(duedate,statement_date.getValue()) - 14; // 11/09/2013: grace period 14 days for any aging
+		if(dydff < 0) dydff = 0;
+
+		intrcs = "";
+		intrc = 0;
+
+		if(!wop[4].equals("") && (chkrwi.equals("RWI") || chkrwi.equals("DNT")) )
+		{
+			// interest calc based on balance - not inv amount
+			try {
+			intrc = (Float.parseFloat(wop[6]) * Float.parseFloat(customer_interest.getValue()) / 100) / 365 * dydff;
+			} catch (Exception e) {}
+
+			if(intrc > 0)
+			{
+				totalinterest += intrc;
+				intrcs = nf2.format(intrc);
+			}
+		}
+
+		POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,currentrow,5,intrcs),wfont,true,""); // interest
+
+		if(dydff == 0)
+			agestr = "";
+		else
+		{
+			if(chkrwi.equals("RWI") || chkrwi.equals("DNT"))
+				agestr = dydff.toString();
+			else
+				agestr = "";
+		}
+
+		POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,currentrow,7,agestr),wfont,true,"###"); // age
+
+		whtstr = wop[7]; // narration
+		if(chkrwi.equals("RWI")) whtstr = wop[8];
+		if(itype == 2) whtstr = ""; // no-narration type
+		POI_CellSetAllBorders(wwb,excelInsertString(wsheet,currentrow,8,whtstr),nfont,false,"");
+
+		ttos = ""; // total o/s
+		if(!wop[6].equals("")) ttos = nf2.format(Float.parseFloat(wop[6]) + intrc);
+		POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,currentrow,6,ttos),wfont,true,"");
+		//excelInsertString(wsheet,currentrow,6,ttos);
+
+		rowcounter++;
+
+		if(i == page_break) { pgbreakd = true; wsheet.setRowBreak(currentrow); }
+		if(i > page_break)
+			if(( (i+page_break) % page2_break) == 0)
+			{
+				pgbreakd = true;
+				wsheet.setRowBreak(currentrow);
+			}
+
+		if(pgbreakd) // re-gen header-row - copy from first header
+		{
+			//org.apache.poi.hssf.usermodel.HSSFRow hdrow = wsheet.createRow(rowcounter+pgadder);
+			// TODO mod here if template change
+			for(ci=0;ci<9;ci++)
+			{
+				Cell hdcell = mainhdrow.getCell(ci);
+				hdstr = POI_GetCellContentString(hdcell,evaluator,"#").trim();
+				jhdc = excelInsertString(wsheet,rowcounter+pgadder,ci,hdstr);
+				//POI_CellSetAllBorders(wwb,jhdc,wfont,true);
+				jhdc.setCellStyle(hdcell.getCellStyle());
+			}
+			rowcounter++;
+		}
+
+		if(!wop[6].equals("")) // do those 0-30 days and etc group-calcs
+		{
+			ktos = Float.parseFloat(ttos);
+			kck = wop[0].trim().toUpperCase();
+			//if(wop[0].equals("Unadjusted credits")) { unadjcred += ktos; ktos = 0; }
+			// 08/01/2013: check for "ON-ACCOUNT"
+			if(kck.equals("UNADJUSTED CREDITS") || kck.equals("ON-ACCOUNT") ) { unadjcred += ktos; ktos = 0; }
+
+			if(dydff <= 0)
+			{
+				sumundef += ktos;
+			}
+
+			if(dydff < 31 && dydff >= 0) sum0_30 += ktos;
+			//if(ktos < 0) ktos = ktos * -1;
+
+			if(dydff > 30 && dydff < 61) sum31_60 += ktos;
+			if(dydff > 60 && dydff < 91) sum61_90 += ktos;
+			if(dydff > 90 && dydff < 121) sum91_120 += ktos;
+			if(dydff > 120 && dydff < 151) sum121_150 += ktos;
+			if(dydff > 150) sum150_on += ktos;
+		}
+	}
+	//debugbox.setValue(debugbox.getValue() + "\nD> wop[2] duedate : " + i.toString() );
+
+	rowcounter++;
+	totalrw = pgadder + rowcounter;
+	Font tfont = wwb.createFont();
+	tfont.setFontHeightInPoints((short)9);
+	tfont.setFontName("Arial");
+	tfont.setBoldweight(Font.BOLDWEIGHT_BOLD);
+
+	// put TOTAL row
+	mergs = "A" + (totalrw + 1).toString() + ":B" + (totalrw + 1).toString();
+	CellRangeAddress region = CellRangeAddress.valueOf(mergs);
+	wsheet.addMergedRegion(region);
+
+	POI_CellSetAllBorders(wwb,excelInsertString(wsheet,totalrw,0,"TOTAL"),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertString(wsheet,totalrw,1,""),tfont,true,"");
+
+	if(soa_balance_total.equals("")) soa_balance_total = "0";
+
+	POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,totalrw,2,soa_inv_total.toString()),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,totalrw,3,soa_recp_total.toString()),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertNumber( wsheet,totalrw,4,nf2.format( Float.parseFloat(soa_balance_total)*-1)),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,totalrw,5,totalinterest.toString()),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,totalrw,6,
+		nf2.format( Float.parseFloat(soa_balance_total)*-1 + totalinterest)),tfont,true,"");
+
+	// insert those 0-30 days and so on at the end of the SOA
+	//debugbox.setValue(debugbox.getValue() + "\nD> insert -30days" );
+
+	rowcounter += 2;
+	totalrw = pgadder + rowcounter;
+	nxttotalrw = totalrw + 1;
+	dyclm = 0;
+
+	// 14/11/2013: req by Tony, include undefined/future-aged amount
+	// 21/11/2013: agreed by CC, put as "Unadjusted credits" instead of "UNDEFINED"
+	POI_CellSetAllBorders(wwb,excelInsertString(wsheet,totalrw,dyclm,"UNADJUSTED CREDITS"),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,nxttotalrw,dyclm, nf2.format(unadjcred * -1) ),tfont,true,"");
+
+	POI_CellSetAllBorders(wwb,excelInsertString(wsheet,totalrw,dyclm+1,"0-30 Days"),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,nxttotalrw,dyclm+1,sum0_30.toString()),tfont,true,"");
+
+	POI_CellSetAllBorders(wwb,excelInsertString(wsheet,totalrw,dyclm+2,"31-60 Days"),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,nxttotalrw,dyclm+2,sum31_60.toString()),tfont,true,"");
+
+	POI_CellSetAllBorders(wwb,excelInsertString(wsheet,totalrw,dyclm+3,"61-90 Days"),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,nxttotalrw,dyclm+3,sum61_90.toString()),tfont,true,"");
+
+	POI_CellSetAllBorders(wwb,excelInsertString(wsheet,totalrw,dyclm+4,"91-120 Days"),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,nxttotalrw,dyclm+4,sum91_120.toString()),tfont,true,"");
+
+	POI_CellSetAllBorders(wwb,excelInsertString(wsheet,totalrw,dyclm+5,"121-150 Days"),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,nxttotalrw,dyclm+5,sum121_150.toString()),tfont,true,"");
+
+	POI_CellSetAllBorders(wwb,excelInsertString(wsheet,totalrw,dyclm+6,"Over 150 Days"),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,nxttotalrw,dyclm+6,sum150_on.toString()),tfont,true,"");
+
+	kktot = (sum0_30 + sum31_60 + sum61_90 + sum91_120 + sum121_150 + sum150_on) - unadjcred;
+	POI_CellSetAllBorders(wwb,excelInsertString(wsheet,totalrw,dyclm+7,"TOTAL"),tfont,true,"");
+	POI_CellSetAllBorders(wwb,excelInsertNumber(wsheet,nxttotalrw,dyclm+7,kktot.toString()),tfont,true,"");
+
+	duetotal = sum31_60 + sum61_90 + sum91_120 + sum121_150 + sum150_on;
+	duestr = "REMINDER:\nWe would like to bring to your attention that your account of RM" + nf3.format(duetotal) +
+	" has exceeded the due date.\nWe hope to receive your payment within 14 days from the date of this statement " +
+	"to avoid service suspension.\nPlease ignore this reminder if payment has been made.";
+	excelInsertString(wsheet,1,5,duestr);
+
+	if(compname.length() > 15) compname = compname.substring(0,15).trim();
+	compname = compname.replaceAll(" ","_");
+	//compname = compname.replaceAll("\\","_");
+	compname = compname.replaceAll("/","_");
+
+	DateFormat fndfmt = new SimpleDateFormat("MMMyyyy");
+	kdte = fndfmt.format(statement_date.getValue());
+
+	tfname = compname + "_SOA_" + kdte + ".xls";
+	outfn = session.getWebApp().getRealPath("tmp/" + tfname); // TODO create some meaningful filename
+	FileOutputStream fileOut = new FileOutputStream(outfn);
+	wwb.write(fileOut);
+	fileOut.close();
+	glob_processed_filename = outfn; // for later usage
+	generated_lbl.setValue(tfname);
+
+	// 14/11/2013: save a copy of the SOA by customer-id
+	// global_selected_customerid set when user select a customer from popup
+	saveFileToDMS( FC6CUST_PREFIX + global_selected_customerid, tfname, outfn, "application/vnd.ms-excel","xls" );
+
+	fillDocumentsList_2(documents_holder,FC6CUST_PREFIX,global_selected_customerid);
+
+	//downloadFile(kasiexport,tfname,outfn); // rwsqlfuncs.zs TODO need to move this
+	upload_filename.setValue(""); // once gen, imported worksheet cleared
+}
+
+>>>>>>> a6b1f79d9714daf1f39e4dc0123982ab2764be5e
+// from insuranceMan_v1.zul
+void showAllRiskSched()
+{
+	st = kiboo.replaceSingleQuotes(searhtxt_tb.getValue()).trim();
+	sdate = kiboo.getDateFromDatebox(startdate);
+	edate = kiboo.getDateFromDatebox(enddate);
+	Listbox newlb = lbhand.makeVWListbox_Width(allriskholder, allrisk_hds, "allrisks_lb", 5);
+
+	byname = "";
+	if(!st.equals("")) byname = " and a.name like '%" + st + "%' ";
+	
+	sqlstm = "select convert(datetime, dbo.ConvertFocusDate(d.date_), 112) as vdate, d.voucherno, a.name as customer_name, " +
+	"(select top 1 ri.dorefyh from data d2 left join u001b ri on ri.extraid=d.extraheaderoff where d2.voucherno=d.voucherno ) as DONo, " +
+	"(select top 1 ri.deliverytoyh from data d2 left join u001b ri on ri.extraid=d.extraheaderoff where d2.voucherno=d.voucherno ) as DelAddr, " +
+
+	"(select top 1 case u.contractstartyh when 0 then null else convert(datetime, focus5012.dbo.ConvertFocusDate(u.contractstartyh), 112) " +
+	"end from data d2 left join u011b u on u.extraid = d2.extraoff where d2.voucherno=d.voucherno ) as InsIncept, " +
+
+	"(select top 1 case u.contractendyh when 0 then null else convert(datetime, focus5012.dbo.ConvertFocusDate(u.contractendyh), 112) " +
+	"end from data d2 left join u011b u on u.extraid = d2.extraoff where d2.voucherno=d.voucherno ) as InsExp, " +
+
+	"dbo.grossByItemType(d.voucherno,'NB') as nb_gross, " +
+	"dbo.grossByItemType(d.voucherno,'DT') as dt_gross, " +
+	"dbo.grossByItemType(d.voucherno,'MT') as mt_gross, " +
+	"dbo.grossByItemType(d.voucherno,'SVR') as svr_gross, " +
+	"dbo.qtyByItemType(d.voucherno,'NB') as nb_qty, " +
+	"dbo.qtyByItemType(d.voucherno,'DT') as dt_qty, " +
+	"dbo.qtyByItemType(d.voucherno,'MT') as mt_qty, " +
+	"dbo.qtyByItemType(d.voucherno,'SVR') as svr_qty, " +
+	"iy.gross as itemamount, " +
+
+	"ri.remarksyh, d.bookno " +
+	"from data d left join mr008 ro on ro.masterid = d.tags6 " +
+	"left join indta iy on iy.salesid = d.salesoff " +
+	"left join mr000 a on a.masterid = d.bookno left join u001b ri on ri.extraid=d.extraheaderoff " +
+	"where d.vouchertype=3329 and ro.name like '%insurance%' and (ri.remarksyh not like '%partial%' or ri.remarksyh not like 'Partial%') " +
+	"and convert(datetime, dbo.ConvertFocusDate(d.date_), 112) between '" + sdate + "' and '" + edate + "' " +
+	byname +
+	"order by d.voucherno,d.bodyid;";
+
+	recs = sqlhand.rws_gpSqlGetRows(sqlstm);
+
+	if(recs.size() == 0) return;
+	newlb.setRows(20); newlb.setMold("paging");
+	//newlb.setMultiple(true);
+	//newlb.addEventListener("onSelect", rwinscliker );
+	ArrayList kabom = new ArrayList();
+	String[] fl = { "voucherno","DONo","customer_name","DelAddr","InsIncept","InsExp" };
+	SimpleDateFormat ddate = new SimpleDateFormat("dd");
+
+	for(d : recs)
+	{
+		ckd = ddate.format(d.get("InsIncept"));
+		pimpidt = ""; //dtf2.format(d.get("InsIncept"));
+		if(!ckd.equals("1")) // pimp inception-date to next month if it's not 1st of Month
+		{
+			Calendar mmd = Calendar.getInstance();
+			mmd.setTime(d.get("InsIncept"));
+			mmd.add(Calendar.MONTH,1);
+			mmd.set(Calendar.DATE,1);
+			pimpidt = dtf2.format(mmd.getTime());
+		}
+
+		dds = null;
+		if(d.get("DONo") != null) dds = getFC6_DOitems(d.get("DONo"),"NB");
+		if(dds != null)
+		{
+			for(pp : dds)
+			{
+				ngfun.popuListitems_Data(kabom,fl,d);
+
+				kabom.add( "" );
+				kabom.add( "" );
+
+				mq = nf0.format( (d.get("nb_qty") == null) ? 0 : d.get("nb_qty") );
+				kabom.add( mq );
+
+				//kabom.add("NBNB");
+
+				kabom.add( pp.get("product_name") );
+
+				//kabom.add( nf2.format( ( d.get("nb_gross") == null) ? 0 : d.get("nb_gross") ) );
+				//kabom.add("NBGROSS");
+				kabom.add( nf2.format(d.get("itemamount")) );
+
+				ki = lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
+				lbhand.setListcellItemLabel(ki, INCEPTION_DATE_POS, pimpidt); // inject calc-incep-date
+
+				// 09/04/2014: if del-addrss is empty or "same as above" , use address from account-table (req by Shopa)
+				cka = d.get("DelAddr").toUpperCase();
+				if(cka.equals("") || cka.indexOf("ABOVE") != -1)
+				{
+					madr = getFC6_CustomerAddress(d.get("bookno").toString());
+					kx = madr.get("address1yh") + ",\n" + madr.get("address2yh") + ",\n" + madr.get("address3yh") + ",\n" + madr.get("address4yh");
+					lbhand.setListcellItemLabel(ki, DELADDRESS_POS, kx);
+				}
+
+				kabom.clear();
+			}
+		}
+
+		dds = null;
+		if(d.get("DONo") != null) dds = getFC6_DOitems(d.get("DONo"),"DT");
+		if(dds != null)
+		{
+			for(pp : dds)
+			{
+				ngfun.popuListitems_Data(kabom,fl,d);
+
+				kabom.add( nf0.format( (d.get("dt_qty") == null) ? 0 : d.get("dt_qty") ) );
+				kabom.add( nf0.format( (d.get("mt_qty") == null) ? 0 : d.get("mt_qty") ) );
+
+				//kabom.add("DTDT");
+				//kabom.add("MTMT");
+
+				kabom.add( "" );
+				kabom.add( pp.get("product_name") );
+
+				/*
+				kabom.add( nf2.format(
+				((d.get("dt_gross") == null) ? 0 : d.get("dt_gross")) + 
+				((d.get("mt_gross") == null) ? 0 : d.get("mt_gross"))
+				));
+				*/
+
+				//kabom.add("DTgROSS");
+				kabom.add( nf2.format(d.get("itemamount")) );
+				
+				ki = lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
+				lbhand.setListcellItemLabel(ki, INCEPTION_DATE_POS, pimpidt); // inject calc-incep-date
+
+				// 09/04/2014: if del-addrss is empty or "same as above" , use address from account-table (req by Shopa)
+				cka = d.get("DelAddr").toUpperCase();
+				if(cka.equals("") || cka.indexOf("ABOVE") != -1)
+				{
+					madr = getFC6_CustomerAddress(d.get("bookno").toString());
+					kx = madr.get("address1yh") + ",\n" + madr.get("address2yh") + ",\n" + madr.get("address3yh") + ",\n" + madr.get("address4yh");
+					lbhand.setListcellItemLabel(ki, DELADDRESS_POS, kx);
+				}
+
+				kabom.clear();
+			}
+		}
+
+		dds = null;
+		if(d.get("DONo") != null) dds = getFC6_DOitems(d.get("DONo"),"MT");
+		if(dds != null)
+		{
+			for(pp : dds)
+			{
+				ngfun.popuListitems_Data(kabom,fl,d);
+
+				kabom.add( nf0.format( (d.get("dt_qty") == null) ? 0 : d.get("dt_qty") ) );
+				kabom.add( nf0.format( (d.get("mt_qty") == null) ? 0 : d.get("mt_qty") ) );
+
+				//kabom.add("");
+				//kabom.add("MTMT");
+
+				kabom.add( "" );
+				kabom.add( pp.get("product_name") );
+
+				/*
+				kabom.add( nf2.format(
+				((d.get("dt_gross") == null) ? 0 : d.get("dt_gross")) + 
+				((d.get("mt_gross") == null) ? 0 : d.get("mt_gross"))
+				));
+				*/
+				
+				//kabom.add("MTGROSS");
+				kabom.add( nf2.format(d.get("itemamount")) );
+				
+				ki = lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
+				lbhand.setListcellItemLabel(ki, INCEPTION_DATE_POS, pimpidt); // inject calc-incep-date
+
+				// 09/04/2014: if del-addrss is empty or "same as above" , use address from account-table (req by Shopa)
+				cka = d.get("DelAddr").toUpperCase();
+				if(cka.equals("") || cka.indexOf("ABOVE") != -1)
+				{
+					madr = getFC6_CustomerAddress(d.get("bookno").toString());
+					kx = madr.get("address1yh") + ",\n" + madr.get("address2yh") + ",\n" + madr.get("address3yh") + ",\n" + madr.get("address4yh");
+					lbhand.setListcellItemLabel(ki, DELADDRESS_POS, kx);
+				}
+
+				kabom.clear();
+			}
+		}
+
+/*
+		alltot = (( d.get("nb_gross") == null) ? 0 : d.get("nb_gross")) +
+		(( d.get("dt_gross") == null) ? 0 : d.get("dt_gross")) +
+		(( d.get("svr_gross") == null) ? 0 : d.get("svr_gross"));
+		kabom.add(nf2.format(alltot));
+*/
+	}
+	allriskholder.setVisible(true);
+}
+
+
+/*
+void recurLC_Tree(Treechildren ichd, Object irs, int ilvl)
+{
+	st = kiboo.replaceSingleQuotes( schbox.getValue().trim() );
+	whts = "";
+	if(!st.equals("")) whts = " and lc.customer_name like '%" + st + "%' ";
+
+	for(d : irs)
+	{
+		Treeitem titem = new Treeitem();
+		Treerow newrow = new Treerow();
+		Treecell[] mcells = new Treecell[] { new Treecell(), new Treecell(), new Treecell(), 
+		new Treecell(), new Treecell(), new Treecell(), new Treecell(), new Treecell(), new Treecell(), new Treecell(), new Treecell() };
+		for(i=0; i<mcells.length; i++)
+		{
+			mcells[i].setParent(newrow);
+			mcells[i].setStyle("font-size:9px");
+		}
+		check_parlc = kiboo.checkNullString(d.get("prev_lc"));
+
+		if(!check_parlc.equals("") && ilvl == 0)
+		{
+			sqlstm = "select lc.origid, lc.lc_id, lc.customer_name, lc.invoice_date, lc.lstatus, " +
+			"(select count(origid) from rw_lc_equips where lc_parent=lc.origid) as aqty, lc.prev_lc, lc.order_type, " +
+			"lc.lstartdate, lc.lenddate, " +
+			"( DATEDIFF(mm,lc.lstartdate,GETDATE()) - DATEDIFF(mm,lc.lstartdate,lc.lenddate) ) as bmonth, " +
+			"lc.manual_inv, lc.remarks " +
+			//"DATEDIFF(mm,lc.lstartdate,GETDATE()) as invmm " +
+			//"DATEDIFF(mm,lc.invoice_date,GETDATE()) as lstinvmonth " +
+			"from rw_lc_records lc " +
+			"where lc.lc_id = '" + check_parlc + "'";
+			// lstatus='inactive';
+			subr = sqlhand.gpSqlGetRows(sqlstm);
+			if(subr.size() > 0)
+			{
+				Treechildren newone = new Treechildren();
+				newone.setParent(titem);
+				recurLC_Tree(newone,subr,ilvl);
+			}
+		}
+
+		idt = d.get("bmonth");
+
+		mcells[0].setLabel( kiboo.checkNullString(d.get("lc_id")) );
+		mcells[0].setStyle("font-weight:bold;font-size:9px");
+		mcells[1].setLabel( kiboo.checkNullString(d.get("customer_name")) );
+		mcells[1].setStyle("font-weight:bold;font-size:9px");
+
+		invd = (d.get("invoice_date") == null) ? "" : dtf2.format(d.get("invoice_date"));
+
+		mcells[2].setLabel( invd );
+		mcells[3].setLabel( (d.get("lstartdate") == null) ? "" : dtf2.format(d.get("lstartdate")) );
+		mcells[4].setLabel( (d.get("lenddate") == null) ? "" : dtf2.format(d.get("lenddate")) );
+		mcells[5].setLabel( (idt < 0) ? "0" : idt.toString() );
+
+		mcells[6].setLabel( d.get("order_type") );
+		mcells[7].setLabel( d.get("aqty").toString() );
+
+		lst = kiboo.checkNullString(d.get("lstatus")).toUpperCase();
+
+		//if(lst.equals("EXTENSION"))
+		//{
+		//	newrow.setStyle("background:#f10c4f");
+		//}
+
+		mcells[LC_STAT_POS].setLabel(lst);
+		mcells[LC_REMARKS_POS].setLabel( kiboo.checkNullString(d.get("remarks")) ); // 03/06/2014: add-back for waygu to keep track on things.. haha
+
+		mcells[LC_ORIGI_POS].setLabel( d.get("origid").toString() );
+
+		if(idt != null)
+		{
+			styl = "";
+			if(idt > 0 && idt <= 2) styl = "background:#BFB663";
+			if(idt > 2)
+			{
+				styl = "background:#F5768B";
+				for(i=0; i<mcells.length; i++)
+				{
+					//mcells[i].setStyle(mcells[i].getStyle() + ";color:#ffffff;");
+					//mcells[i].setSclass("blink");
+				}
+			}
+			newrow.setStyle(styl);
+		}
+
+		if(invd.equals("")) 
+		{
+			newrow.setStyle("background:#5c3566"); // no invoice-date hilite
+			for(i=0; i<mcells.length; i++)
+			{
+				mcells[i].setStyle(mcells[i].getStyle() + ";color:#ffffff;");
+				//mcells[i].setSclass("blink");
+			}
+		}
+
+		newrow.setParent(titem);
+		newrow.addEventListener("onDoubleClick", tidcliker);
+		newrow.addEventListener("onClick", titicliker);
+		titem.setOpen(false);
+		titem.setParent(ichd);
+	}
+}
+*/
+
+//showLC_tree(0, mainlc_tree);
+/*
+<hbox>
+	<button id="asscust_b" label="Select customer" style="font-size:9px" onClick="pickcustomer_popup.open(self)" />
+	<label id="fc6id_lb" style="font-size:9px" />
+	<label value="Rental invoices between" style="font-size:9px;color:#ffffff" />
+	<datebox id="startdate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(startdate)" />
+	<label value="and" style="font-size:9px;color:#ffffff" />
+	<datebox id="enddate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(enddate)" />
+	<button id="loadrwi_b" label="Load" style="font-size:9px" onClick="listFC6_RWI(1)" />
+</hbox>
+*/
+/*
+Object[] rwihds =
+{
+	new listboxHeaderWidthObj("RWI#",true,"90px"),
+	new listboxHeaderWidthObj("Dated",true,"80px"),
+	new listboxHeaderWidthObj("Amount",true,"150px"),
+	new listboxHeaderWidthObj("ROC",true,""),
+	new listboxHeaderWidthObj("DO",true,""),
+	new listboxHeaderWidthObj("Remarks",true,""),
+	new listboxHeaderWidthObj("OrderType",true,""),
+	new listboxHeaderWidthObj("Asgn",true,"60px"),
+	new listboxHeaderWidthObj("rwlcid",true,""),
+	new listboxHeaderWidthObj("fc6id",true,""),
+};
+
+void listFC6_RWI(int itype)
+{
+	sdate = kiboo.getDateFromDatebox(startdate);
+    edate = kiboo.getDateFromDatebox(enddate);
+	// TODO might need to chg, the dup RW with diff smaller amount is for diem-billing
+	sqlstm = "select distinct d.voucherno, convert(datetime, dbo.ConvertFocusDate(d.date_), 112) as voucherdate, " +
+	"kd.remarksyh, kd.rocnoyh, kd.dorefyh, kd.ordertypeyh, " + 
+	"(select sum(amount1) from data where voucherno=d.voucherno) as rwiamt, " +
+	"lr.assigned, lr.origid, (select top 1 bodyid from data where voucherno=d.voucherno order by bodyid) as fc6bid " +
+	"from data d " + 
+	"left join u001b kd on kd.extraid = d.extraheaderoff " +
+	"left join rwsdb2.dbo.rw_lc_records lr on lr.rwno = d.voucherno " +
+	"where d.vouchertype=3329 and d.amount1 <> 0 " +
+	"and d.bookno=" + global_selected_customerid +
+	" and convert(datetime, dbo.ConvertFocusDate(d.date_), 112) between '" + sdate + "' and '" + edate + "' " +
+	//"group by d.voucherno, d.date_, d.amount1, kd.remarksyh, kd.rocnoyh, kd.dorefyh, kd.ordertypeyh " +
+	"order by voucherdate;" ;
+}
+*/

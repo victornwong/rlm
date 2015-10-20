@@ -1,0 +1,630 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?page id="outbounreqmod"?>
+<zk>
+<zscript src="rglobal/rglobal.zs" />
+<zscript src="rglobal/formMaker_v1.zs" />
+<zscript src="rglobal/rlmsql.zs" />
+<zscript src="rglobal/customerSelector.zs" />
+<zscript src="rglobal/stkoutfunc.zs" />
+<zscript src="rglobal/wofuncs.zs" />
+<zscript src="stockManf/stocklister.zs" />
+<zscript src="stockManf/outboundlister.zs" />
+<zscript>
+<![CDATA[
+MYTITLE = "WH OUTBOUND Requests Management";
+MYVERSION = "v0.1";
+MYPANEL = "outboundreqpanel";
+/**
+ * @title Outbound WH requests
+ * @author Victor Wong
+ * @since 09/09/2015
+ * @notes
+*/
+import java.util.*;
+import java.text.*;
+import java.io.*;
+import java.sql.*;
+import java.sql.Date;
+import java.lang.Float;
+import groovy.sql.Sql;
+import org.zkoss.zk.ui.*;
+import org.zkoss.zk.zutl.*;
+import java.math.BigDecimal;
+import java.awt.Color;
+import org.zkoss.util.media.AMedia;
+import org.zkoss.zul.*;
+import org.apache.poi.hssf.usermodel.*;
+import org.apache.poi.hssf.util.*;
+import org.apache.poi.ss.util.*;
+import org.victor.*;
+sechand = new SecurityFuncs();
+myincludeid = Executions.getCurrent().getParameter("myid");
+
+try {
+useraccessobj = sechand.getUserAccessObject();
+//if(useraccessobj == null) Executions.sendRedirect(MAINLOGIN_PAGE);
+} catch (Exception e) {}
+
+kiboo = new Generals(); sqlhand = new SqlFuncs(); lbhand = new ListboxHandler();
+guihand = new GuiFuncs(); luhand = new LookupFuncs(); dmshand = new DMSFuncs();
+gridhand = new GridHandler(); ngfun = new NGfuncs(); rwsqlfun = new RWMS_sql();
+
+LIMIT_SUPPLIERS_LOADING = " limit 100"; // used in supplierfunc.zs
+ISACTIVE_SUPPLIER_LOADING = ""; // set this in other modu to get active supplier only: and IsActive=1
+
+last_list_type = 0;
+glob_sel_outitem = null;
+glob_sel_stkout = glob_sel_arcode = glob_stkout_status = glob_stkout_stage = "";
+
+//items_need_update = false;
+
+void togButts(boolean iwhat)
+{
+	Object[] butts = { selcustomer_b,updob_b,newoitem_b,slctstk_b,saveoitems_b,remitem_b,c_order_type,updoutitem_b,lnkworkorder_b };
+	massDisableComponents(butts,iwhat);
+}
+
+/**
+ * Call-back from stock-master listbox clicker - call from stocklister.stkitemdoubelclik() and stocklister.stkitemclik()
+ * @param itarget the selected listitem object
+ */
+void stockItemListbox_callback(Object itarget)
+{
+	liststkmaster_pop.close();
+	obitemslb = outitems_holder.getFellowIfAny("outitems_lb");
+	if( obitemslb == null) return;
+
+	glob_sel_stock_code = lbhand.getListcellItemLabel(itarget,0);
+	glob_sel_description = lbhand.getListcellItemLabel(itarget,1);
+	glob_sel_id = lbhand.getListcellItemLabel(itarget,ITM_ID);
+
+	try
+	{
+		isel = obitemslb.getSelectedItem();
+		lbhand.setListcellItemLabel(isel,OBITM_STKID_POS, glob_sel_id );
+		lbhand.setListcellItemLabel(isel,OBITM_STKCODE_POS, glob_sel_stock_code );
+		lbhand.setListcellItemLabel(isel,OBITM_DESC_POS, glob_sel_description );
+	} catch (Exception e) {}
+}
+
+/**
+ * Call-back exec from findCustomers.fndcustdclicker . Customize this for other modu
+ * @param isel    list-item object
+ * @param icid    customer.Id
+ * @param iarcode customer.ar_code
+ * @param icustn  customer.customer_name
+ */
+void findcustomer_Callback(Object isel, String icid, String iarcode, String icustn)
+{
+	selcustomer_pop.close();
+	r = getCustomer_Rec(icid);
+	if(r == null) return;
+
+	glob_sel_arcode = iarcode; // save for global usage - going to be saved into db too
+
+	// populate 'em metadata boxes - outboundmetaboxes defined below
+	String[] cfl = { "address1", "address2", "address3", "Address4", "customer_name",
+	"telephone_no", "fax_no", "E_mail", "contact_person1", "Salesman_code" };
+
+	ngfun.populateUI_Data(outboundmetaboxes,cfl,r);
+}
+
+/**
+ * Call-back from double-click outbound items listbox
+ * @param  isel             the selected list-item
+ * @throws glob_sel_outitem [description]
+ */
+void obitem_callBack(Object isel)
+{
+	glob_sel_outitem = isel;
+	oi_desc_tb.setValue( lbhand.getListcellItemLabel(isel,OBITM_DESC_POS) );
+	oi_qty_tb.setValue( lbhand.getListcellItemLabel(isel,OBITM_QTY_POS) );
+	oi_unitprice_tb.setValue( lbhand.getListcellItemLabel(isel,OBITM_UPRICE_POS) );
+	editobitem_pop.open(isel);
+}
+
+/**
+ * [workOrder_callBack description]
+ * @param isel selected list-item
+ */
+void workOrder_callBack(Object isel)
+{
+}
+
+/**
+ * [workOrder_dc_callBack description]
+ * @param isel selected list-item
+ */
+void workOrder_dc_callBack(Object isel)
+{
+	listworkorder_pop.close();
+	wo = lbhand.getListcellItemLabel(isel,WO_ORIGID_POS);
+	c_WorksOrder.setValue(WORKORDER_PREFIX + " " + wo); // put work-order ID for th outbound order
+}
+
+/**
+ * Save outbound items listbox to db, store them into TEXT fields delimited
+ * @param iob the outbound rec ID
+ * @param ilb listbox holding 'em items
+ * @return true=save, false=not
+ */
+boolean saveOutboundItems(String iob, Listbox ilb)
+{
+	if(ilb.getItemCount() == 0) return false;
+	ts = ilb.getItems().toArray();
+	desc = stkcode = stkid = qty = uprice = "";
+	for(i=0;i<ts.length;i++)
+	{
+		desc += kiboo.replaceSingleQuotes(lbhand.getListcellItemLabel(ts[i],OBITM_DESC_POS)) + "::";
+		//stkcode += lbhand.getListcellItemLabel(ts[i],OBITM_STKCODE_POS) + "::";
+		stkid += lbhand.getListcellItemLabel(ts[i],OBITM_STKID_POS) + "::";
+		qty += lbhand.getListcellItemLabel(ts[i],OBITM_QTY_POS) + "::";
+		uprice += lbhand.getListcellItemLabel(ts[i],OBITM_UPRICE_POS) + "::";
+	}
+	sqlstm = "update tblStockOutMaster set order_stockid='" + stkid + "', order_desc='" + desc + "'," +
+	"order_qty='" + qty + "', order_uprice='" + uprice + "' where Id=" + iob;
+
+	sqlhand.rws_gpSqlExecuter(sqlstm);
+	return true;
+}
+
+/**
+ * [showOutboundMeta description]
+ * @param iob outbound ID
+ */
+void showOutboundMeta(String iob)
+{
+	r = getOutboundRec(iob);
+	c_voucherno.setValue("STKOUT " + iob);
+	ngfun.populateUI_Data(outboundmetaboxes,outbound_fields,r);
+
+	glob_sel_arcode = kiboo.checkNullString(r.get("ar_code"));
+	c_customer_name.setDisabled( (!glob_sel_arcode.equals("")) ? true : false); // disable customer-name entry if selected-customer from db
+
+	togButts( (r.get("status").equals("DRAFT")) ? false : true ); // only DRAFT outbound can be juggled
+
+	obgrandtotal_lbl.setValue(""); // clear them totals and gst
+	gst_lbl.setValue("");
+
+	newlb = showOutboundItems(r,outitems_holder,"outitems_lb",OBITEMS_PRICE,15);
+	gp_calcPOTotal(newlb,OBITM_SUBTOT_POS,obgrandtotal_lbl,"");
+	gp_calcGST(obgrandtotal_lbl,GST_RATE,gst_lbl,"");
+
+	workarea.setVisible(true);
+}
+
+/**
+ * [outboundFunc description]
+ * @param iwhat button ID
+ */
+void outboundFunc(String iwhat)
+{
+	todaydate =  kiboo.todayISODateTimeString();
+	sqlstm = msgtext = "";
+	renum = false;
+	unm = "tester";
+	try { unm = useraccessobj.username; } catch (Exception e) {}
+
+	ArrayList kabom = new ArrayList();
+	obitemslb = outitems_holder.getFellowIfAny("outitems_lb");
+
+	if(iwhat.equals("newoutbound_b")) // insert empty new outboound order
+	{
+		sqlstm = "insert into tblStockOutMaster (strDate,customer_name,posted,status,order_type,stage,username) values " +
+		"('" + todaydate + "','NEW CUSTOMER',0,'DRAFT','UNKWN','NEW','" + unm + "');";
+	}
+
+	if(!glob_sel_stkout.equals(""))
+	{
+		if(iwhat.equals("commit_b")) // commit outbound - need not check processing stage for now
+		{ //  && !glob_stkout_stage.equals("WIP") && !glob_stkout_stage.equals("DONE") && !glob_stkout_stage.equals("TRANS")
+			if(!glob_stkout_status.equals("COMMIT"))
+			{
+				if(obitemslb.getItemCount() > 0) // check anything in items listbox
+				{
+					if(Messagebox.show("Once committed, no more changes allowed..", "Are you sure?",
+						Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+					sqlstm = "update tblStockOutMaster set status='COMMIT' where Id=" + glob_sel_stkout;
+					glob_sel_stkout = "COMMIT";
+					togButts(true);
+				}
+				else
+				{
+					msgtext = "No items to commit";
+				}
+			}
+			else
+			{
+				msgtext = "ERR: no need to re-commit";
+			}
+		}
+
+		if(iwhat.equals("suspend_b")) // suspend the outbound - can suspend when stage is NEW only
+		{
+			// TODO Need reload-check to stage status, in case other user already drag it for processing
+			if(glob_stkout_stage.equals("NEW"))
+			{
+				if(Messagebox.show("You are about to suspend an outbound order", "Are you sure?",
+					Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+				sqlstm = "update tblStockOutMaster set status='SUSPEND' where Id=" + glob_sel_stkout;
+				glob_sel_stkout = "SUSPEND";
+				togButts(true);
+			}
+			else
+			{
+				msgtext = "ERR: outbound order is already in processing stage. Can only be suspended by higher authority";
+			}
+		}
+
+		if(iwhat.equals("updob_b")) // update outbound metadata
+		{
+			d = ngfun.getString_fromUI(outboundmetaboxes);
+			sqlstm = "update tblStockOutMaster set Address1='" + d[0] + "',Address2='" + d[1] + "',Address3='" + d[2] + "',Address4='" + d[3] + "'," +
+			"customer_name='" + d[4] + "',telephone='" + d[5] + "',fax='" + d[6] + "',email='" + d[7] + "',contact='" + d[8] + "'," +
+			"salesrep='" + d[9] + "',order_type='" + d[10] + "', ar_code='" + glob_sel_arcode + "',WorksOrder='" + d[11] + "' " +
+			"where Id=" + glob_sel_stkout;
+		}
+
+		if(iwhat.equals("newoitem_b")) // insert into items listbox
+		{
+			kabom.add("0"); kabom.add("NEW ITEM");
+			kabom.add(UNKNOWN_STRING); kabom.add("0");
+			kabom.add("0"); kabom.add("0"); kabom.add("0");
+			lbhand.insertListItems(obitemslb,kiboo.convertArrayListToStringArray(kabom),"false","");
+			lbhand.setDoubleClick_ListItems(obitemslb, outbitem_dclick); // refresh the double-clicker for added item
+			renum = true;
+		}
+
+		if(iwhat.equals("remitem_b")) // remove items
+		{
+			removeItemcodes(outitems_holder,"outitems_lb");
+		}
+
+		if(iwhat.equals("saveoitems_b")) // save items into db
+		{
+			msgtext = (saveOutboundItems(glob_sel_stkout,obitemslb)) ? "OK: items saved.." : "ERR: items not saved or no items";
+		}
+
+		if(iwhat.equals("updoutitem_b")) // update the outbound item - call from pop-up
+		{
+			editobitem_pop.close();
+			lbhand.setListcellItemLabel(glob_sel_outitem,OBITM_DESC_POS, oi_desc_tb.getValue().trim());
+			lbhand.setListcellItemLabel(glob_sel_outitem,OBITM_QTY_POS, oi_qty_tb.getValue().trim());
+			lbhand.setListcellItemLabel(glob_sel_outitem,OBITM_UPRICE_POS, oi_unitprice_tb.getValue().trim());
+
+			recalcSubtotal(glob_sel_outitem,OBITM_QTY_POS,OBITM_UPRICE_POS,OBITM_SUBTOT_POS);
+			gp_calcPOTotal(obitemslb,OBITM_SUBTOT_POS,obgrandtotal_lbl,"");
+			gp_calcGST(obgrandtotal_lbl,GST_RATE,gst_lbl,"");
+		}
+
+		if(iwhat.equals("setdraftob_b")) // set outbound to DRAFT - admin
+		{
+			// TODO need to update all picked items stage for this outbound as well
+			sqlstm = "update tblStockOutMaster set status='DRAFT', stage='NEW' where Id=" + glob_sel_stkout;
+		}
+
+		if(iwhat.equals("settoday_b")) // set outbound entry date to today - admin
+		{
+			sqlstm = "update tblStockOutMaster set strDate='" + todaydate + "' where Id=" + glob_sel_stkout;
+		}
+
+		if(iwhat.equals("delob_b")) // delete outbound entry - admin - MUST CHECK STATUS and STAGE
+		{
+			if(Messagebox.show("This will delete the selected outbound entry", "Are you sure?",
+				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+			msgtext = "BOOM.. deleted.. you wish";
+		}
+	}
+
+	if(renum) renumberListbox(obitemslb,0,1,true);
+
+	if(!sqlstm.equals(""))
+	{
+		sqlhand.rws_gpSqlExecuter(sqlstm);
+		listOutbounds(last_list_type);
+	}
+	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
+}
+
+]]>
+</zscript>
+
+<popup id="liststkmaster_pop">
+	<div sclass="shadowbox" style="${NEWSTOCKITEM_BACKGROUND}" width="800px" >
+		<hbox>
+			<listbox id="m_stock_cat_lb" sclass="k9" mold="select" />
+			<button label="by category" sclass="k9mo" onClick="listStockItems(1)" />
+			<listbox id="m_groupcode_lb" sclass="k9" mold="select" />
+			<button label="by group" sclass="k9mo" onClick="listStockItems(2)" />
+			<listbox id="m_classcode_lb" sclass="k9" mold="select" />
+			<button label="by class" sclass="k9mo" onClick="listStockItems(3)" />
+			<textbox id="m_searchtext_tb" sclass="k9" />
+			<button label="Load/Search" sclass="k9mo" onClick="listStockItems(4)" />
+		</hbox>
+		<div id="stockitems_holder" />
+	</div>
+</popup>
+
+<popup id="editstockitem_pop">
+	<div sclass="shadowbox" style="${NEWSTOCKITEM_BACKGROUND}" width="400px" visible="false">
+		<grid sclass="GridLayoutNoBorder">
+			<rows>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<separator />
+					<label value="Edit stock-item" style="color:#ffffff;font-weight:bold;text-shadow: 1px 1px #333333;" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Category" sclass="k9b" />
+					<combobox id="e_stock_cat_cb" sclass="k9" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Group" sclass="k9b" />
+					<combobox id="e_groupcode_cb" sclass="k9" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Class" sclass="k9b" />
+					<combobox id="e_classcode_cb" sclass="k9" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Stock-code" sclass="k9b" />
+					<textbox id="e_stock_code_tb" sclass="k9" width="99%" disabled="true" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Description" sclass="k9b" />
+					<textbox id="e_description_tb" sclass="k9" width="99%" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<separator />
+					<hbox>
+						<button id="updateitem_b" label="Update" sclass="k9mo" onClick="editstockitem_pop.close(); itemFunc(self.getId())" />
+						<button label="Close" sclass="k9mo" onClick="editstockitem_pop.close()" />
+					</hbox>
+				</row>
+			</rows>
+		</grid>
+		<separator height="3px" />
+	</div>
+</popup>
+
+<popup id="editobitem_pop">
+	<div sclass="shadowbox" style="${SUPP_FORM_STYLE}" >
+		<grid sclass="GridLayoutNoBorder" width="500px">
+			<rows>
+				<row style="${SUPP_FORM_STYLE}">
+					<label value="Description" sclass="k9b" />
+					<textbox id="oi_desc_tb" width="97%" height="50px" multiline="true" sclass="k9" />
+				</row>
+				<row style="${SUPP_FORM_STYLE}">
+					<label value="Quantity" sclass="k9b" />
+					<textbox id="oi_qty_tb" width="70px" />
+				</row>
+				<row style="${SUPP_FORM_STYLE}">
+					<label value="Unit price" sclass="k9b" />
+					<textbox id="oi_unitprice_tb" width="70px" />
+				</row>
+			</rows>
+		</grid>
+		<separator height="2px" />
+		<button id="updoutitem_b" label="Update" sclass="k9mo" onClick="outboundFunc(self.getId())" />
+	</div>
+</popup>
+
+<popup id="listpopop">
+	<div sclass="shadowbox" style="${LISTPOBACKGROUND}">
+		<grid sclass="GridLayoutNoBorder">
+			<rows>
+				<row style="${LISTPOBACKGROUND}">
+					<label value="Start" sclass="wbo" />
+					<datebox id="startdate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+					<label value="End" sclass="wbo" />
+					<datebox id="enddate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+				</row>
+				<row style="${LISTPOBACKGROUND}" spans="3,1">
+					<textbox id="searhtxt_tb" sclass="k9" width="95%" />
+					<button label="Load/Find" sclass="k9mo" onClick="listpopop.close();listOutbounds(1)" />
+				</row>
+				<row style="${LISTPOBACKGROUND}" spans="3,1">
+					<textbox id="byoutnum_tb" sclass="k9" width="50%" />
+					<button label="by request number" sclass="k9mo" onClick="listpopop.close();listOutbounds(2)" />
+				</row>
+			</rows>
+		</grid>
+	</div>
+</popup>
+
+<popup id="selcustomer_pop">
+	<div sclass="shadowbox" style="background:#F0D126" width="650px" >
+		<hbox>
+			<label value="Search" sclass="k9" />
+			<textbox id="searchcust_tb" sclass="k9" />
+			<button label="Find / Load" sclass="k9mo" onClick="findCustomers(searchcust_tb,foundcusts_holder,selectcustid)" />
+		</hbox>
+		<separator height="3px" />
+		<hbox>
+			<div id="foundcusts_holder" width="400px" />
+			<div>
+				<label id="selectcustid" sclass="k9mo" multiline="true" />
+			</div>
+		</hbox>
+	</div>
+</popup>
+
+<popup id="listworkorder_pop">
+	<div sclass="shadowbox" style="${LISTPOBACKGROUND}" width="600px">
+		<grid sclass="GridLayoutNoBorder" width="300px">
+			<rows>
+				<row style="${LISTPOBACKGROUND}">
+					<label value="Start" sclass="wbo" />
+					<datebox id="wostartdate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+					<label value="End" sclass="wbo" />
+					<datebox id="woenddate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+				</row>
+				<row style="${LISTPOBACKGROUND}" spans="3,1">
+					<textbox id="wosearhtxt_tb" sclass="k9" width="95%" />
+					<button label="Load/Find" sclass="k9mo"
+						onClick='listpopop.close();listWorkOrders(workorder_holder, "wo_lb", wostartdate, woenddate, wosearhtxt_tb,bywo_tb, 1, false)' />
+				</row>
+				<row style="${LISTPOBACKGROUND}" spans="3,1">
+					<textbox id="bywo_tb" sclass="k9" width="50%" />
+					<button label="by work-order" sclass="k9mo"
+						onClick='listpopop.close();listWorkOrders(workorder_holder, "wo_lb", wostartdate, woenddate, wosearhtxt_tb,bywo_tb, 2, false)' />
+				</row>
+			</rows>
+		</grid>
+		<separator height="3px" />
+		<div id="workorder_holder" />
+	</div>
+</popup>
+
+<popup id="adminpop">
+	<div sclass="shadowbox" style="background:#CE1313">
+		<vbox>
+			<button id="setdraftob_b" label="Set draft" onClick="outboundFunc(self.getId())" />
+			<button id="settoday_b" label="Set today" onClick="outboundFunc(self.getId())" />
+			<button id="delob_b" label="DELETE" onClick="outboundFunc(self.getId())" />
+		</vbox>
+	</div>
+</popup>
+
+<style src="/real-world.css" />
+<style>
+	.GridLayoutNoBorder tr.z-row td.z-row-inner, tr.z-row .z-cell, div.z-grid
+	{
+		border: none; overflow: hidden; zoom: 1;
+		border-top: none; border-left: none; border-right: none; border-bottom: none;
+	}
+	.wbo { font-size:9px;color:#ffffff;font-weight:bold }
+</style>
+
+<div width="${PANEL_WIDTH}" style="opacity: 0.8;" >
+<panel id="${MYPANEL}" title="${MYTITLE} ${MYVERSION}" border="none" collapsible="true" closable="true" >
+<panelchildren style="background:#0C203E">
+	<div sclass="shadowbox" style="background:#6991B8">
+		<hbox>
+			<button label="List" sclass="k9mo" onClick="listpopop.open(self)" />
+			<button id="newoutbound_b" label="New order" sclass="k9mo" onClick="outboundFunc(self.getId())" />
+			<button id="commit_b" label="COMMIT" sclass="k9mo" onClick="outboundFunc(self.getId())" />
+			<button label="Print" sclass="k9mo" onClick="" />
+			<button label="Export" sclass="k9mo" onClick="" />
+			<separator width="10px" />
+			<button id="suspend_b" label="Suspend" sclass="k9mo" style="color:#F2670C" onClick="outboundFunc(self.getId())" />
+			<separator width="10px" />
+			<button id="adminbut" label="ADMIN" sclass="k9mo" style="color:#D41F1F" onClick="adminpop.open(self)" visible="false" />
+		</hbox>
+		<separator height="3px" />
+		<div id="outbounds_holder" />
+	</div>
+	<separator height="3px" />
+	<div id="workarea" sclass="shadowbox" style="background:#2F6B9C" visible="false">
+		<hbox>
+			<div id="metaarea" sclass="shadowbox" style="background:#8B0103">
+				<hbox>
+					<button id="selcustomer_b" label="Select customer" sclass="k9mo" onClick="selcustomer_pop.open(self)" />
+					<button id="updob_b" label="Update" sclass="k9mo" onClick="outboundFunc(self.getId())" />
+					<button id="lnkworkorder_b" label="Link work-order" sclass="k9mo" onClick="listworkorder_pop.open(self)" />
+				</hbox>
+				<separator height="3px" />
+				<grid sclass="GridLayoutNoBorder" width="340px">
+					<rows>
+						<row style="${ENTRYFORM_STYLE}" spans="3,1">
+							<label id="c_voucherno" sclass="subhead1" />
+							<listbox id="c_order_type" mold="select" />
+						</row>
+						<row style="${ENTRYFORM_STYLE}" spans="1,3">
+							<label value="Work Order" sclass="wbo" />
+							<label id="c_WorksOrder" value="" sclass="wbo" />
+						</row>
+						<row style="${ENTRYFORM_STYLE}" spans="1,3">
+							<label value="Customer" sclass="wbo" />
+							<textbox id="c_customer_name" width="99%" sclass="k9" />
+						</row>
+						<row style="${ENTRYFORM_STYLE}" spans="1,3">
+							<label value="Address1" sclass="wbo" />
+							<textbox id="c_address1" width="99%" sclass="k9" />
+						</row>
+						<row style="${ENTRYFORM_STYLE}" spans="1,3">
+							<label value="Address2" sclass="wbo" />
+							<textbox id="c_address2" width="99%" sclass="k9" />
+						</row>
+						<row style="${ENTRYFORM_STYLE}" spans="1,3">
+							<label value="Address3" sclass="wbo" />
+							<textbox id="c_address3" width="99%" sclass="k9" />
+						</row>
+						<row style="${ENTRYFORM_STYLE}" spans="1,3">
+							<label value="Address4" sclass="wbo" />
+							<textbox id="c_Address4" width="99%" sclass="k9" />
+						</row>
+						<row style="${ENTRYFORM_STYLE}" >
+							<label value="Tel" sclass="wbo" />
+							<textbox id="c_telephone_no" width="95%" sclass="k9" />
+							<label value="Fax" sclass="wbo" />
+							<textbox id="c_fax_no" width="95%" sclass="k9" />
+						</row>
+						<row style="${ENTRYFORM_STYLE}" >
+							<label value="Contact" sclass="wbo" />
+							<textbox id="c_contact_person1" width="95%" sclass="k9" />
+							<label value="Email" sclass="wbo" />
+							<textbox id="c_E_mail" width="95%" sclass="k9" />
+						</row>
+						<row style="${ENTRYFORM_STYLE}" spans="1,1,2">
+							<label value="SalesRep" sclass="wbo" />
+							<textbox id="c_Salesman_code" width="95%" sclass="k9" />
+							<separator />
+						</row>
+					</rows>
+				</grid>
+			</div>
+
+			<div sclass="shadowbox" style="background:#8B0103" >
+				<hbox>
+					<button id="newoitem_b" label="New item" sclass="k9mo" onClick="outboundFunc(self.getId())" />
+					<button id="slctstk_b" label="Select parts" sclass="k9mo" onClick="liststkmaster_pop.open(self)" />
+					<button id="saveoitems_b" label="Save items" sclass="k9mo" onClick="outboundFunc(self.getId())" />
+					<button id="remitem_b" label="Remove" sclass="k9mo" onClick="outboundFunc(self.getId())" />
+				</hbox>
+				<separator height="3px" />
+				<div id="outitems_holder" />
+				<div style="text-align:right;padding-right:10px">
+					<grid sclass="GridLayoutNoBorder">
+						<rows>
+							<row style="background:#8B0103" >
+								<label value="Grand total :" sclass="subhead1" />
+								<label id="obgrandtotal_lbl" sclass="subhead1" />
+							</row>
+							<row style="background:#8B0103" >
+								<label value="GST :" sclass="subhead1" />
+								<label id="gst_lbl" sclass="subhead1" />
+							</row>
+						</rows>
+					</grid>
+				</div>
+			</div>
+		</hbox>
+	</div>
+<zscript>
+<![CDATA[
+
+Object[] outboundmetaboxes = { c_address1, c_address2, c_address3, c_Address4, c_customer_name, 
+	c_telephone_no, c_fax_no, c_E_mail, c_contact_person1, c_Salesman_code, c_order_type, c_WorksOrder };
+
+String[] outbound_fields = { "Address1","Address2","Address3","Address4","customer_name",
+	"telephone","fax","email","contact","salesrep","order_type","WorksOrder" };
+
+fillStockMasterSelectorDropdowns(); // stocklister.zs
+luhand.populateListbox_ByLookup(c_order_type, "OUTBOUND_TYPE", 2);
+
+if(useraccessobj.accesslevel == 9)
+{
+	adminbut.setVisible(true);
+}
+
+]]>
+</zscript>
+</panelchildren>
+</panel>
+</div>
+</zk>
+

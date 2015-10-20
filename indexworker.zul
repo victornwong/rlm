@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?page id="als_portal_main" ?>
+<?page title="UNIVERSAL"?>
+<?link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"?>
+<zk xmlns:h="http://www.w3.org/1999/xhtml" xmlns:zk="http://www.zkoss.org/2005/zk">
+<zscript src="rwglobal/rwglobaldefs.zs" />
+<zscript>
+<![CDATA[
+MYTITLE = "UNIVERSAL";
+MYVERSION = "v0.05";
+/**
+ * @author Victor Wong
+ * @since 27/09/2015
+ *
+ * A minimalist vplay.zul - no drop-down menus, just simple buttons to activate modules
+ *
+ */
+import java.util.*;
+import java.text.*;
+import org.zkoss.zk.ui.*;
+import org.victor.*;
+
+kiboo = new Generals(); lbhand = new ListboxHandler(); sqlhand = new SqlFuncs(); sechand = new SecurityFuncs();
+menuhand = new MenuFuncs(); guihand = new GuiFuncs(); luhand = new LookupFuncs(); gridhand = new GridHandler();
+
+TIMER_DELAY = "10000";
+MAINBAR_WIDTH = "1920px";
+MENUBAR_WIDTH = "1920px";
+MAINMENU_STYLE = "font-weight:bold;color:#ffffff";
+
+DIVBUTTONSTYLE = "background:#008A8A";
+DIVBUTTONSTYLE2 = "background:#27333D";
+DIVBUTTONSEPARATORSTYLE = "background:#F1851F";
+DIVBUTTONWIDTH = "180px";
+
+try { useraccessobj = sechand.getUserAccessObject(); } catch (Exception e) {}
+//if(useraccessobj == null) Executions.sendRedirect(MAINLOGIN_PAGE); // no access obj, redirect back to login page
+
+moduleCounter = 1;
+
+/**
+ * Load external module into main program
+ * recoded this globalActivateWindow() from alsglobal_guifuncs.zs with iplayg
+ * @param iplayg         playground object
+ * @param parentdiv_name parent DIV ID
+ * @param winfn          .ZUL file to load into INCLUDE
+ * @param windId         the ID to set the INCLUDE
+ * @param uParams        extra parameters to pass to 
+ * @param uAO            useraccessobj
+ */
+void activateModule(String iplayg, String parentdiv_name, String winfn, String windId, String uParams, Object uAO)
+{
+	Include newinclude = new Include();
+	newinclude.setId(windId);
+	includepath = winfn + "?myid=" + windId + "&" + uParams;
+	newinclude.setSrc(includepath);
+	sechand.setUserAccessObj(newinclude, uAO); // securityfuncs.zs
+	//Div contdiv = Path.getComponent(iplayg + parentdiv_name);
+	Div contdiv = stagearea.getFellowIfAny(parentdiv_name);
+	newinclude.setParent(contdiv);
+}
+
+void runModule(Object apmod, String iprefix)
+{
+	//newid = makeRandomId(iprefix);
+	newid = iprefx + moduleCounter.toString();
+	moduleCounter++;
+
+	apfn = apmod.module_fn;
+	mydivname = (apmod.module_gui == GUI_PANEL) ? "workbox" : "miscwindows" ;
+	activateModule(mainPlayground,mydivname,apfn,newid,apmod.parameters,useraccessobj);
+}
+
+void runThings(String iwhat)
+{
+	Object[] menuspop = { mainmenupop,warehousemenupop,techmenupop,settingmenupop,adminmenupop };
+	for(i=0;i<menuspop.length;i++)
+	{
+		menuspop[i].close();
+	}
+	apfn = uParams = "";
+
+	if(iwhat.equals("stockmaster_m")) apfn = "rlm/stockMasterMan_v1.zul";
+	if(iwhat.equals("suppliers_m")) apfn = "rlm/supplierManPanel_v1.zul";
+	if(iwhat.equals("inbound_m")) apfn = "rlm/inboundStock_v1.zul";
+	if(iwhat.equals("outbound_m")) apfn = "rlm/outboundReq_v1.zul";
+	if(iwhat.equals("purchaseorder_m")) apfn = "rlm/purchaseOrderNG_v1.zul";
+	if(iwhat.equals("stocklist_m")) apfn = "rlm/inventoryMan_v1.zul";
+	if(iwhat.equals("pickpack_m")) apfn = "rlm/outboundKanban_v1.zul";
+	if(iwhat.equals("workorder_m")) apfn = "rlm/workOrderMan_v1.zul";
+	if(iwhat.equals("wokanban_m")) apfn = "rlm/workorderKanban_v1.zul";
+	if(iwhat.equals("wofulfil_m")) apfn = "rlm/woFullfilment_v1.zul";
+
+	if(iwhat.equals("xmlform_m")) apfn = "adminmodules/xmlformTemplate_v1.zul";
+	if(iwhat.equals("stlookup_m")) { apfn = "adminmodules/staticlookupman.zul"; uParams = "lu=1"; }
+	if(iwhat.equals("usercontrol_m")) apfn = "adminmodules/usercontroller.zul";
+	if(iwhat.equals("wofulfil_m")) apfn = "rlm/woFullfilment_v1.zul";
+
+	if(!apfn.equals(""))
+	{
+		newid = iwhat+moduleCounter.toString();
+		moduleCounter++;
+		Include newinclude = new Include();
+		newinclude.setId(newid);
+		includepath = apfn + "?myid=" + newid + "&" + uParams;
+		newinclude.setSrc(includepath);
+		sechand.setUserAccessObj(newinclude, useraccessobj); // securityfuncs.zs
+		newinclude.setParent(workbox);
+	}
+}
+
+void logoutSystem()
+{
+	Window loginwindow = Path.getComponent("//als_portal_login/loginwin");
+	loginwindow.setVisible(true);
+	Include logininc = Path.getComponent("//als_portal_login/mainprogram");
+	logininc.setSrc("");
+	useraccessobj.clearAll();
+}
+
+/*
+All codes written by Victor Wong otherwise stated else
+*/
+
+]]>
+</zscript>
+
+<style src="/real-world.css" />
+<style>
+	body
+	{
+		padding: 0 0;
+		background-color:#2e3436;
+		background: url('rwimg/vintage2w.jpg') no-repeat center center fixed ;
+		-webkit-background-size: cover;
+		-moz-background-size: cover;
+		-o-background-size: cover;
+		background-size: cover;
+	}
+
+	body:before
+	{
+		content: "";
+		position: fixed;
+		top: -10px;
+		left: 0;
+		width: 100%;
+		height: 10px;
+		-webkit-box-shadow: 0px 0px 10px rgba(0,0,0,.8);
+		-moz-box-shadow: 0px 0px 10px rgba(0,0,0,.8);
+		 box-shadow: 0px 0px 10px rgba(0,0,0,.8);
+		z-index: 100;
+	}
+</style>
+
+<popup id="mainmenupop" style="opacity:0.7">
+	<vbox>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="workorder_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Work Order" /></div>
+
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="outbound_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="WH Outbound Requests" /></div>
+
+	</vbox>
+</popup>
+
+<popup id="warehousemenupop" style="opacity:0.7">
+	<vbox>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="pickpack_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="WH Outbound Backlogs" /></div>
+
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="inbound_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="WH Inbound Goods Receival" /></div>
+
+		<div sclass="shadowbox" style="${DIVBUTTONSEPARATORSTYLE}" width="${DIVBUTTONWIDTH}" />
+
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="purchaseorder_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Purchase Order" /></div>
+
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="stocklist_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Inventory" /></div>
+
+	</vbox>
+</popup>
+
+<popup id="settingmenupop" style="opacity:0.7">
+	<vbox>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="stockmaster_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Stock Master" /></div>
+
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="suppliers_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Suppliers" /></div>
+
+		<div sclass="shadowbox" style="${DIVBUTTONSEPARATORSTYLE}" width="${DIVBUTTONWIDTH}" />
+	</vbox>
+</popup>
+
+<popup id="techmenupop" style="opacity:0.7">
+	<vbox>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="wofulfil_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Work Order Fulfillment" /></div>
+
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="wokanban_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Work Order Backlogs" /></div>
+	</vbox>
+</popup>
+
+<popup id="adminmenupop">
+	<vbox>
+
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="usercontrol_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Users" /></div>
+
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="stlookup_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Static Lookups" /></div>
+	
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="xmlform_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="XML-Form" /></div>
+	</vbox>
+</popup>
+
+<div sclass="shadowbox" style="background:#82B334;opacity:0.8">
+	<hbox>
+		<label style="font-size:16px;font-weight:bold" value="${MYTITLE}" />
+		<label sclass="k9mo" value="${MYVERSION}" />
+		<separator width="10px" />
+
+		<div style="${DIVBUTTONSTYLE2};padding:3px" onClick="mainmenupop.open(self)">
+			<label style="${MAINMENU_STYLE}" value="General" />
+		</div>
+
+		<div style="${DIVBUTTONSTYLE2};padding:3px">
+			<label style="${MAINMENU_STYLE}" value="Technical" onClick="techmenupop.open(self)" />
+		</div>
+
+		<div style="${DIVBUTTONSTYLE2};padding:3px">
+			<label style="${MAINMENU_STYLE}" value="Warehouse" onClick="warehousemenupop.open(self)" />
+		</div>
+
+		<div style="${DIVBUTTONSTYLE2};padding:3px" onClick="settingmenupop.open(self)">
+			<label style="${MAINMENU_STYLE}" value="Settings" />
+		</div>
+
+		<div style="${DIVBUTTONSTYLE2};padding:3px">
+			<label style="${MAINMENU_STYLE}" value="Logout" onClick="logoutSystem()" />
+		</div>
+
+		<separator width="10px" />
+
+		<div style="background:#EF1212;padding:3px">
+			<label style="font-weight:bold" value="ADMIN" onClick="adminmenupop.open(self)" visible="true" />
+		</div>
+
+	</hbox>
+</div>
+<separator height="3px" />
+
+<hbox>
+	<separator width="2px" />
+	<div id="stagearea">
+		<div id="workbox" />
+		<div id="worksandbox" />
+		<include id="mainprogram" />
+	</div>
+</hbox>
+
+<zscript>
+<![CDATA[
+/*
+style="overflow-y:inherit;overflow-x:hidden;height:650px;width:1024px;border:0px"
+*/
+]]>
+</zscript>
+</zk>

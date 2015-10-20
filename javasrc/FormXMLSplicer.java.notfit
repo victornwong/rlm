@@ -1,0 +1,298 @@
+package org.victor;
+
+import java.lang.*;
+import java.util.*;
+import java.sql.*;
+//import groovy.sql.*;
+import org.zkoss.zk.ui.*;
+import org.zkoss.zul.*;
+import org.victor.*;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
+import org.xml.sax.InputSource;
+import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
+
+
+// Form elements slicer thing - kinda like a rewrite of ZK's stuff - implement a subset of components only - not all
+// SAXParser boiler-plate codes extracted from some website
+public class FormXMLSplicer extends DefaultHandler
+{
+//Generals kiboo;
+//SqlFuncs sqlhand;
+//ListboxHandler lbhand;
+//GuiFuncs guihand;
+LookupFuncs luhand;
+GridHandler gridhand;
+
+	Component formholder;
+	Grid formgrid;
+	Rows gridrows;
+	Row cnewrow;
+
+	String tmpValue;
+	Listbox cnewlistbox;
+	Listitem cnewlistitem;
+	Label cnewlabel;
+	Radiogroup cnewradiogroup;
+
+	String formid;
+	
+	String runcount;
+
+	public FormXMLSplicer(Component iholder, String iformid)
+	{
+		formholder = iholder;
+		formid = iformid;
+
+		//kiboo = new Generals();
+		//sqlhand = new SqlFuncs();
+		//lbhand = new ListboxHandler();
+		//guihand = new GuiFuncs();
+		luhand = new LookupFuncs();
+		gridhand = new GridHandler();
+
+		runcount = "";
+	}
+	
+	public String retruncount()
+	{
+		return runcount;
+	}
+
+	public void startElement(String s, String s1, String elementName, Attributes attributes) throws SAXException
+	{
+		boolean gotattrib = false;
+		if(attributes.getLength() != 0) gotattrib = true;
+		Component whatobj = null;
+		Component myparent = null;
+		String[] strarray;
+		
+		if(elementName.equalsIgnoreCase("theform")) // magic starts
+		{
+			formgrid = new Grid();
+
+			String fwidth = attributes.getValue("width");
+			if(fwidth != null) formgrid.setWidth(fwidth);
+
+			if(!formid.equals("")) formgrid.setId(formid);
+
+			gridrows = new Rows();
+			gridrows.setParent(formgrid);
+		}
+
+		if(elementName.equalsIgnoreCase("header"))
+		{
+			String ftitle = attributes.getValue("title");
+			String ftstyle = attributes.getValue("titlestyle");
+			String fstyle = attributes.getValue("style");
+			String fspans = attributes.getValue("spans");
+
+			Row titrow = new Row();
+			titrow.setStyle( (fstyle == null) ? "" : fstyle );
+			titrow.setSpans( (fspans == null) ? "" : fspans );
+
+			Label titlabel = new Label();
+			titlabel.setValue( (ftitle == null) ? "" : ftitle );
+			titlabel.setStyle( (ftstyle == null) ? "" : ftstyle );
+			titlabel.setParent(titrow);
+
+			titrow.setParent(gridrows);
+		}
+
+		if(elementName.equalsIgnoreCase("row"))
+		{
+			Row cnewrow = new Row();
+			if(gotattrib)
+			{
+				String spanstring = attributes.getValue("spans");
+				if(spanstring != null) cnewrow.setSpans(spanstring);
+			}
+		}
+
+		myparent = cnewrow;
+
+		if(elementName.equalsIgnoreCase("textbox")) whatobj = new Textbox();
+		if(elementName.equalsIgnoreCase("label"))
+		{
+			Label cnewlabel = new Label();
+			cnewlabel.setValue("dddeeerrr");
+			cnewlabel.setParent(myparent);
+			whatobj = cnewlabel;
+		}
+
+		if(elementName.equalsIgnoreCase("datebox"))
+		{
+			Datebox chemk = new Datebox();
+			chemk.setValue(new java.util.Date());
+			whatobj = chemk;
+		}
+
+		if(elementName.equalsIgnoreCase("listbox"))
+		{
+			cnewlistbox = new Listbox();
+			whatobj = cnewlistbox;
+		}
+
+		if(elementName.equalsIgnoreCase("listitem"))
+		{
+			cnewlistitem = new Listitem();
+			whatobj = cnewlistitem;
+			myparent = cnewlistbox;
+		}
+
+		if(elementName.equalsIgnoreCase("listcell"))
+		{
+			whatobj = new Listcell();
+			myparent = cnewlistitem;
+		}
+		
+		if(elementName.equalsIgnoreCase("radiogroup"))
+		{
+			cnewradiogroup = new Radiogroup();
+			whatobj = cnewradiogroup;
+		}
+		
+		if(elementName.equalsIgnoreCase("radio"))
+		{
+			Radio tmprd = new Radio();
+			whatobj = tmprd;
+			myparent = cnewradiogroup;
+		}
+
+		if(elementName.equalsIgnoreCase("combobox")) whatobj = new Combobox();
+		if(elementName.equalsIgnoreCase("checkboxes")) whatobj = new Vbox();
+
+		if(whatobj != null)
+		{
+			// if type datebox, set the default format
+			if(whatobj instanceof Datebox) { Datebox tmpobj = (Datebox)whatobj; tmpobj.setFormat("yyyy-MM-dd"); }
+
+			if(gotattrib)
+			{
+				String theid = attributes.getValue("id");
+				if(theid != null) whatobj.setId(theid);
+
+				String theval = attributes.getValue("value");
+				//if(theval != null) whatobj.setValue(theval);
+
+				String thestyle = attributes.getValue("style");
+				//if(thestyle != null) whatobj.setAttribute("style",thestyle);
+
+				String themulti = attributes.getValue("multiline");
+				//if(themulti != null) whatobj.setMultiline(true);
+
+				String thewidth = attributes.getValue("width");
+				//if(thewidth != null) whatobj.setWidth(thewidth);
+
+				String theheight = attributes.getValue("height");
+				//if(theheight != null) whatobj.setHeight(theheight);
+
+				String themold = attributes.getValue("mold");
+				//if(themold != null) whatobj.setMold(themold);
+				
+				String thelabel = attributes.getValue("label");
+				//if(thelabel != null) whatobj.setLabel(thelabel);
+
+				String therows = attributes.getValue("rows");
+				//if(therows != null) whatobj.setRows(Integer.parseInt(therows));
+				
+				String thedisabled = attributes.getValue("disabled");
+				//if(thedisabled != null) whatobj.setDisabled(true);
+
+				String thecolumn = attributes.getValue("column");
+				String thetitle = (attributes.getValue("title") == null) ? "" : attributes.getValue("title");
+				String thetitlestyle = (attributes.getValue("titlestyle") == null) ? "" : attributes.getValue("titlestyle");
+
+				// for listitem - get items from lookup table
+				String thelookup = attributes.getValue("lookup");
+				if(thelookup != null)
+				{
+					try
+					{
+					if(whatobj instanceof Listbox) luhand.populateListbox_ByLookup(whatobj,thelookup,2);
+
+					// h/vbox checkboxes
+					if(whatobj instanceof Vbox || whatobj instanceof Hbox)
+					{
+						if(thecolumn == null) luhand.populateCheckbox_ByLookup(whatobj,thelookup,thestyle,2);
+						if(thecolumn != null)
+						{
+							whatobj = new Div();
+							if(theid != null) whatobj.setId(theid);
+							luhand.drawMultiColumnTickboxes_2(thelookup,(Div)whatobj,theid,
+							Integer.parseInt(thecolumn),thestyle,thetitle,thetitlestyle);
+						}
+					}
+
+					// combobox with lookups
+					if(whatobj instanceof Combobox && thelookup != null)
+					{
+						strarray = luhand.getLookupChildItems_StringArray(thelookup,2);
+						gridhand.makeComboitem((Combobox)whatobj,strarray);
+					}
+
+					// radiogroup with lookups and not multi-column
+					if(whatobj instanceof Radiogroup)
+					{
+						if(thelookup != null && thecolumn == null)
+						{
+							strarray = luhand.getLookupChildItems_StringArray(thelookup,2);
+							for(int i=0; i<strarray.length; i++)
+							{
+								String rlabel = strarray[i];
+								Radio cradio = new Radio();
+								cradio.setLabel(rlabel);
+								if(thestyle != null) cradio.setStyle(thestyle);
+								cradio.setParent(whatobj);
+							}
+						}
+
+						if(thelookup != null && thecolumn != null)
+						{
+							luhand.drawMultiColumnRadios(thelookup,(Radiogroup)whatobj,theid,Integer.parseInt(thecolumn),thestyle,thetitle,thetitlestyle);
+						}
+					}
+					
+					} catch (SQLException e) {}
+				}
+			}
+
+			whatobj.setParent(myparent);
+		}
+	}
+
+	public void endElement(String s, String s1, String elementName) throws SAXException
+	{
+		try
+		{
+		if(elementName.equalsIgnoreCase("theform")) formgrid.setParent(formholder);
+		if(elementName.equalsIgnoreCase("row")) cnewrow.setParent(gridrows);
+		
+		if(elementName.equalsIgnoreCase("label"))
+		{
+			if(tmpValue.indexOf(":::") != -1)
+			{
+				cnewlabel.setMultiline(true);
+				tmpValue = tmpValue.replace(":::","\n");
+				cnewlabel.setValue(tmpValue);
+			}
+		}
+		} catch (NullPointerException e) {}
+		
+	}
+
+	public void characters(char[] ac, int i, int j) throws SAXException
+	{
+		tmpValue = new String(ac,i,j);
+	}
+
+}
+

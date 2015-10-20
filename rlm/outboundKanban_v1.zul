@@ -1,0 +1,800 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?page id="kanbanmang1"?>
+<zk>
+<zscript src="rglobal/rglobal.zs" />
+<zscript src="rglobal/formMaker_v1.zs" />
+<zscript src="rglobal/rlmsql.zs" />
+<zscript src="rglobal/customerSelector.zs" />
+<zscript src="rglobal/stkoutfunc.zs" />
+<zscript src="stockManf/stocklister.zs" />
+<zscript src="stockManf/itemsfunc.zs" />
+<zscript src="stockManf/outboundlister.zs" />
+<zscript src="outboundKanbClass.zs" />
+<zscript>
+<![CDATA[
+MYTITLE = "WH - Outbound Backlogs";
+MYVERSION = "v0.1";
+MYPANEL = "kanbanpanel2";
+/**
+ * Kanban board for WH outbound backlogs 
+ * @author Victor Wong
+ * @since 17/08/2015
+ * @notes
+ * Inspired by Kanboard
+*/
+import java.util.*;
+import java.text.*;
+import java.io.*;
+import java.sql.*;
+import java.sql.Date;
+import java.lang.Float;
+import groovy.sql.Sql;
+import org.zkoss.zk.ui.*;
+import org.zkoss.zk.zutl.*;
+import java.math.BigDecimal;
+import java.awt.Color;
+import org.zkoss.util.media.AMedia;
+import org.zkoss.zul.*;
+import org.apache.poi.hssf.usermodel.*;
+import org.apache.poi.hssf.util.*;
+import org.apache.poi.ss.util.*;
+import org.victor.*;
+sechand = new SecurityFuncs();
+myincludeid = Executions.getCurrent().getParameter("myid");
+try
+{
+	useraccessobj = sechand.getUserAccessObject();
+	//if(useraccessobj == null) Executions.sendRedirect(MAINLOGIN_PAGE);
+}
+catch (Exception e) {}
+
+kiboo = new Generals(); sqlhand = new SqlFuncs(); lbhand = new ListboxHandler();
+guihand = new GuiFuncs(); luhand = new LookupFuncs(); dmshand = new DMSFuncs();
+gridhand = new GridHandler(); ngfun = new NGfuncs(); rwsqlfun = new RWMS_sql();
+
+DEBUGON = true;
+
+BAR_HEIGHT = "450px";
+SEPARATOR_COLOR = "background:#666666";
+SEPARATOR_WIDTH="2px";
+
+// Incomplete backlogs due checking and style
+MED_DUE = 3;
+OVER_DUE = 7;
+SUPER_DUE = 10;
+
+NORMAL_DUE_STYLE = "background:#8DB148"; // greenish
+MED_DUE_STYLE = "background:#D5BC2D"; // yellowish
+OVER_DUE_STYLE = "background:#EA15BA"; // purplish
+SUPER_DUE_STYLE = "background:#F42A0F"; // redish
+
+public Object contextSelectedRow = whopSelectedRow = glob_sel_outitemobj = itemcode_sel_obj = null;
+glob_sel_stockcode = glob_sel_stkid = glob_sel_outbound = "";
+
+//kanbClass kanb = new kanbClass();
+
+void pipeDrop(DropEvent event, Object droped)
+{
+	Object dragged = event.getDragged();
+	Object findrws = findgrd = null;
+
+	if(droped instanceof Div)
+	{
+		cd1 = droped.getChildren().toArray();
+		for(i=0; i<cd1.length; i++)
+		{
+			if(cd1[i] instanceof Grid)
+			{
+				findgrd = cd1[i];
+				break;
+			}
+		}
+		if(findgrd != null)
+		{
+			cd2 = findgrd.getChildren().toArray();
+			for(i=0; i<cd2.length; i++)
+			{
+				if(cd2[i] instanceof Rows)
+				{
+					findrws = cd2[i];
+					break;
+				}
+			}
+		}
+	}
+	//alert(dragged + " :: " + droped + " :: " + findgrd + " :: " + findrws);
+
+	if(findrws != null)
+	{
+		kx = dragged.getChildren().toArray();
+		/*
+		if(findrws.getId().equals("d_lostbin")) // strike-out quotation if dragged to lost-bin
+			kx[1].setStyle( kx[1].getStyle() + ";text-decoration:line-through");
+		else
+			kx[1].setStyle( "font-size:9px" );
+		*/
+		if(updatepipes_callBack(dragged,findrws))
+			dragged.setParent(findrws); // actually moving
+	}
+}
+
+/**
+ * Hard-coded UI components traverser to get STKOUT number
+ * @param  igrd the grid to process
+ * @return      STKOUT voucher id
+ */
+String getVoucherIdfromGrid(Object igrd)
+{
+	ovn = igrd.getChildren().get(0).getChildren().get(0).getChildren().get(0).getValue(); // hard-coded get outbound voucher no.
+	ovn = ovn.replaceAll(STKOUT_PREFIX,"").trim();
+	return ovn;
+}
+
+/**
+ * Hard-coded update-pipes call-back for each modu - refer to populateOutbounds() for those grid-row position
+ * This one used to update WH outbound orders
+ * @param iobj the dropped object
+ * @param idropto drop-to which pipe
+ */
+boolean updatepipes_callBack(Object iobj, Object idropto)
+{
+	unm = "tester";
+	try { unm = useraccessobj.username; } catch (Exception e) {}
+	retval = true;
+	tgrd = iobj.getChildren().get(0); // hard-coded for WH outbound orders to get Grid
+	drpipe = idropto.getId(); // get pipe's status string to be used to update database - see the HashMap below
+
+	ovn = getVoucherIdfromGrid(tgrd);
+	ostageobj = tgrd.getChildren().get(0).getChildren().get(0).getChildren().get(2); // hard-coded get original stage LABEL object
+	ostage = tgrd.getChildren().get(0).getChildren().get(0).getChildren().get(2).getValue(); // hard-coded get original stage
+	ostageuserobj = tgrd.getChildren().get(0).getChildren().get(2).getChildren().get(1); // hard-coded get stage-user/handler LABEL object
+
+	if(ostage.equals("DONE")) // already DONE voucher when moved, need extra handling . TODO
+	{
+		alert("voucher already done.. why do you want to move it?");
+	}
+
+	ostageobj.setValue(glob_PipeStatus.get(drpipe)); // set original-stage LABEL
+	ostageuserobj.setValue(unm);
+
+	updateInventory_movement(ovn,glob_PipeStatus.get(drpipe));
+	//alert(ovn + " :: " + glob_PipeStatus.get(drpipe) + " :: " + ostage);
+	return retval;
+}
+
+/**
+ * [updateInventory_movement description]
+ * @param ioid   tblStockOutMaster.Id
+ * @param istage set to which stage
+ */
+void updateInventory_movement(String ioid, String istage)
+{
+	updmove = true;
+	today = kiboo.todayISODateTimeString();
+	unm = "tester";
+	try { unm = useraccessobj.username; } catch (Exception e) {}
+	stkoutref = STKOUT_PREFIX+ioid; // STKOUT-id for StockList.OutRefNo
+
+	if(istage.equals("DONE")) // moving stkout to DONE, need extra handling -- TODO
+	{
+		if(Messagebox.show("Please double-check all items for this order, inventory will be posted ", "Are you sure?",
+			Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+	}
+
+	if(updmove)
+	{
+		sqlstm = "update tblStockOutMaster set stage='" + istage + "', stage_user='" + unm + "', stage_date='" + today + "' where Id=" + ioid;
+		sqlhand.rws_gpSqlExecuter(sqlstm);
+		
+		sqlstm = "update StockList set stage='" + istage + "', OutRefNo='" + stkoutref + "', OutRefDate='" + today + "' where ItemCode in " +
+		"(SELECT StockCode FROM tblStockOutDetail WHERE parent_id=" + ioid + ");";
+		sqlhand.rws_gpSqlExecuter(sqlstm); // update inventory if serials available in StockList
+	}
+}
+
+void kancard_callBack(Object iobj)
+{
+	blindTings_withTitle(blindbutt,kanboard_thing,blindlabel);
+
+	tgrd = iobj.getChildren().get(0); // hard-coded to get GRID
+	glob_sel_outbound = getVoucherIdfromGrid(tgrd);
+	c_voucherno.setValue(STKOUT_PREFIX + " " + glob_sel_outbound);
+
+	r = getOutboundRec(glob_sel_outbound);
+	ngfun.populateUI_Data(outboundmetaboxes,outbound_fields,r);
+	newlb = showOutboundItems(r,obitems_holder,"obitems_lb",OBITEMS_QTY_ONLY,8);
+
+	workarea.setVisible(true);
+	scanworkarea.setVisible(false);
+}
+
+/**
+ * Call-back from double-click outbound items listbox
+ * @param  isel             the selected list-item
+ */
+void obitem_callBack(Object isel)
+{
+	glob_sel_outitemobj = isel;
+	glob_sel_stockcode = lbhand.getListcellItemLabel(isel,OBITM_STKCODE_POS);
+	glob_sel_stkid = lbhand.getListcellItemLabel(isel,OBITM_STKID_POS);
+	qty = lbhand.getListcellItemLabel(isel,OBITM_QTY_POS);
+	stockcode_lbl.setValue(glob_sel_stockcode + " ( " + qty + " required )");
+
+	// load/show recs from tblStockOutDetail , uses listbox header defs in itemsfunc.itmcode_stockcode_hds
+	newlb = lbhand.makeVWListbox_Width(scanitems_holder, itmcode_stockcode_hds, "itemcodes_lb", 3);
+	newlb.setMultiple(true); newlb.setCheckmark(true);
+	itemcount_lbl.setValue("Item count : 0");
+
+	sqlstm = "select Id,StockCode,stk_id,Quantity from tblStockOutDetail where par_order_stk_id=" + glob_sel_stkid + " and parent_id=" + glob_sel_outbound;
+	r = sqlhand.rws_gpSqlGetRows(sqlstm);
+	if(r.size() > 0)
+	{
+		newlb.setRows(10);
+		ArrayList kabom = new ArrayList();
+		for(d : r)
+		{
+			kabom.add("0"); kabom.add(d.get("StockCode").trim());
+			kabom.add(d.get("Quantity").toString()); kabom.add("0"); kabom.add("UNK");
+			kabom.add("UNK"); kabom.add(d.get("stk_id").toString()); kabom.add( d.get("Id").toString() ); // stockcode,stk_id,origid
+			lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
+			kabom.clear();
+		}
+
+		itemcount_lbl.setValue("Item count : " + newlb.getItemCount());
+		lbhand.setDoubleClick_ListItems(newlb, itemdoubleclicker); // uses double-clicker handler in itemsfunc.zs
+		renumberListbox(newlb,0,1,true);
+		checkScanItemStockCode();
+	}
+
+	scanworkarea.setVisible(true);
+}
+
+class carddcliker implements org.zkoss.zk.ui.event.EventListener
+{
+	public void onEvent(Event event) throws UiException
+	{
+		isel = event.getTarget();
+		try
+		{
+			kancard_callBack(isel);
+		} catch (Exception e) {}
+	}
+}
+kbcard_dclick = new carddcliker();
+
+/**
+ * Populate outbound entries into kanboard - uses tblStockOutMaster
+ */
+void populateOutbounds()
+{
+	today = kiboo.dtf2.parse(kiboo.todayISODateString());
+	sqlstm = "select Id,strDate,customer_name,order_type,username,stage,stage_user,WorksOrder from tblStockOutMaster where status='COMMIT';";
+	r = sqlhand.rws_gpSqlGetRows(sqlstm);
+	if(r.size() == 0) return;
+	dbg = "";  styl = "";
+
+	for(d : r)
+	{
+		gridclass = "";
+		gridstyle = NORMAL_DUE_STYLE;
+
+		dydff = calcDayDiff(d.get("strDate"),today);
+		if(dydff >= MED_DUE && dydff < OVER_DUE) gridstyle = MED_DUE_STYLE;
+		if(dydff >= OVER_DUE && dydff < SUPER_DUE) gridstyle = OVER_DUE_STYLE;
+		if(dydff >= SUPER_DUE) { gridstyle = SUPER_DUE_STYLE; gridclass = "blink"; }
+
+		ngrid = new Grid(); ngrid.setSclass("GridLayoutNoBorder");
+		crows = new Rows(); crows.setParent(ngrid);
+
+		crow = new org.zkoss.zul.Row(); crow.setStyle(gridstyle); crow.setParent(crows); crow.setSclass(gridclass);
+		ngfun.gpMakeLabel(crow,"",STKOUT_PREFIX + " " + d.get("Id").toString(),styl);
+		//ngfun.gpMakeLabel(crow,"","Date: " + kiboo.dtf2.format(d.get("strDate")),styl);
+		ngfun.gpMakeLabel(crow,"","Date: " + d.get("strDate").toString(),styl);
+		ngfun.gpMakeLabel(crow,"",d.get("stage"),styl).setVisible(false); // hidden original stage
+
+		crow = new org.zkoss.zul.Row(); crow.setSpans("3"); crow.setStyle(gridstyle); crow.setParent(crows);
+		k = ngfun.gpMakeLabel(crow,"",d.get("customer_name"),"font-size:9px"); k.setSclass("k9mo");
+
+		crow = new org.zkoss.zul.Row(); crow.setSpans("1,2"); crow.setStyle(gridstyle); crow.setParent(crows);
+		ngfun.gpMakeLabel(crow,"","Type: " + d.get("order_type"),"font-size:9px");
+		ngfun.gpMakeLabel(crow,"","From: " + kiboo.checkNullString(d.get("WorksOrder")),"font-size:9px");
+
+		crow = new org.zkoss.zul.Row(); crow.setSpans("3"); crow.setStyle(gridstyle); crow.setParent(crows);
+		ngfun.gpMakeLabel(crow,"","Handler: " + kiboo.checkNullString(d.get("stage_user")),"font-size:9px");
+
+		/*
+		crow = new org.zkoss.zul.Row(); crow.setParent(crows);
+		ngfun.gpMakeLabel(crow,"","dydff:" + dydff.toString(),"font-size:9px");
+		*/
+
+		krow = new org.zkoss.zul.Row(); // ROW connect to parent pipe's ROWS
+		ngrid.setParent(krow); // outbound details grid
+		krow.setParent(glob_MyPipesMap.get(d.get("stage")));
+		krow.setDraggable("pipefun");
+		krow.addEventListener("onDoubleClick", kbcard_dclick);
+
+		//if(DEBUGON) dbg += STKOUT_PREFIX + " " + d.get("Id").toString() + " :: " + kiboo.dtf2.format(d.get("strDate")) + " :: " + d.get("customer_name") + " :: " + d.get("order_type") + "\n";
+	}
+	
+	//if(DEBUGON) debugbox.setValue(dbg);
+}
+
+/**
+ * Double-click callback from itemsfunc.itemsdclick
+ * @param isel list-item cliked
+ */
+void inboundItems_callBack(Object isel)
+{
+	i_itemcode_tb.setValue( lbhand.getListcellItemLabel(isel,ITEM_CODE_POS) );
+	i_quantity_tb.setValue( lbhand.getListcellItemLabel(isel,ITEM_QTY_POS) );
+	//i_cost_tb.setValue( lbhand.getListcellItemLabel(isel,ITEM_COST_POS) );
+	//i_bin_tb.setValue( lbhand.getListcellItemLabel(isel,ITEM_LOCA_POS) );
+	itemcode_sel_obj = isel;
+	edititem_pop.open(isel);
+}
+
+void funcDo(String iwhat)
+{
+	scanitmlb = scanitems_holder.getFellowIfAny("itemcodes_lb");
+
+	if(iwhat.equals("capitemcode_b")) // parse item-codes in textbox, insert into listbox
+	{
+		ks = kiboo.replaceSingleQuotes(scanitems_tb.getValue().trim());
+		newlb = insertItemcodes(ks,scanitems_holder,"itemcodes_lb",SHOWWITH_STOCKCODE);
+		//scanitems_tb.setValue(""); // clear textbox once items inserted into listbox
+
+		itemcount_lbl.setValue("Item count : " + newlb.getItemCount());
+	}
+
+	if(iwhat.equals("removeitems_b")) // remove selected scan items
+	{
+		//removeItemcodes(scanitems_holder,"itemcodes_lb");
+		removeScanItems(glob_sel_outbound, scanitmlb);
+	}
+
+	if(iwhat.equals("chkdupscan_b"))
+	{
+		checkDuplicateItems(scanitems_holder,"itemcodes_lb", ITEM_CODE_POS);
+	}
+
+	if(iwhat.equals("chkstkcode_b")) // check scan-item for stock-code
+	{
+		checkScanItemStockCode();
+	}
+
+	if(iwhat.equals("saveobitems_b")) // save them scan-items into tblStockOutDetail
+	{
+		if(scanitmlb.getItemCount() > 0)
+		{
+			saveOutboundScanItems(glob_sel_outbound,glob_sel_stkid,scanitmlb);
+		}
+	}
+
+	if(iwhat.equals("upditem_b")) // update scan-item, call from edititem_pop
+	{
+		try { itm = kiboo.replaceSingleQuotes( i_itemcode_tb.getValue().trim() ); lbhand.setListcellItemLabel(itemcode_sel_obj,ITEM_CODE_POS,itm); } catch (Exception e) {}
+		try { fv = Integer.parseInt( i_quantity_tb.getValue().trim() ); lbhand.setListcellItemLabel(itemcode_sel_obj,ITEM_QTY_POS,fv.toString()); } catch (Exception e) {}
+		//try { fv = Float.parseFloat( i_cost_tb.getValue().trim() ); lbhand.setListcellItemLabel(itemcode_sel_obj,ITEM_COST_POS,fv.toString()); } catch (Exception e) {}
+		//try { fv = kiboo.replaceSingleQuotes( i_bin_tb.getValue().trim() ); lbhand.setListcellItemLabel(itemcode_sel_obj,ITEM_LOCA_POS,fv); } catch (Exception e) {}
+	}
+}
+
+/**
+ * Remove scan-items from listbox, if got origid, remove from database
+ * knockoff from rlmsql.removeItemcodes()
+ * @param iob [description]
+ * @param ilb [description]
+ */
+void removeScanItems(String iob, Listbox ilb)
+{
+	if(ilb.getItemCount() == 0) return;
+	ts = ilb.getSelectedItems().toArray();
+
+	if(Messagebox.show("Remove all the selected items..", "Are you sure?",
+		Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+	Sql sql = wms_Sql();
+	Connection thecon = sql.getConnection();
+	PreparedStatement pstmt = thecon.prepareStatement("delete from tblStockOutDetail where Id=?;");
+
+	for(i=0;i<ts.length;i++)
+	{
+		origid = lbhand.getListcellItemLabel(ts[i],ITEM_ORIGID_POS);
+		if(!origid.equals("0")) // scan-item is from database, remove it too
+		{
+			pstmt.setInt(1,Integer.parseInt(origid));
+			pstmt.addBatch();
+		}
+		ts[i].setParent(null);
+	}
+
+	pstmt.executeBatch(); pstmt.close();
+	sql.close();
+
+	renumberListbox(ilb,0,1,true);
+}
+
+/**
+ * Save or update scan-items into tblStockOutDetail - by parent_id = iob
+ * @param iob outbound voucher no.
+ * @param iparentstkid selected parent stock-ID
+ * @param ilb listbox to process
+ */
+void saveOutboundScanItems(String iob, String iparentstkid, Listbox ilb)
+{
+	checkScanItemStockCode(); // before saving, do stock-code digging for all scan-items
+	dbg = "";
+
+	Sql sql = wms_Sql();
+	Connection thecon = sql.getConnection();
+	PreparedStatement pstmtinsert = thecon.prepareStatement("insert into tblStockOutDetail (StockCode,parent_id,stk_id,par_order_stk_id,Quantity) values (?,?,?,?,?);");
+	PreparedStatement pstmtupdate = thecon.prepareStatement("update tblStockOutDetail set StockCode=?, stk_id=?, Quantity=? where Id=?");
+
+	ts = ilb.getItems().toArray();
+	for(i=0;i<ts.length;i++)
+	{
+		itm = lbhand.getListcellItemLabel(ts[i],ITEM_CODE_POS);
+		stkid = lbhand.getListcellItemLabel(ts[i],ITEM_STKID_POS);
+		origid = lbhand.getListcellItemLabel(ts[i],ITEM_ORIGID_POS);
+		qty = lbhand.getListcellItemLabel(ts[i],ITEM_QTY_POS);
+
+		if(origid.equals("0")) // if no origid, insert into db
+		{
+			pstmtinsert.setString(1,itm);
+			pstmtinsert.setInt(2,Integer.parseInt(iob));
+			pstmtinsert.setInt(3,Integer.parseInt(stkid));
+			pstmtinsert.setInt(4,Integer.parseInt(iparentstkid));
+			pstmtinsert.setInt(5,Integer.parseInt(qty));
+			pstmtinsert.addBatch();
+		}
+		else
+		{
+			pstmtupdate.setString(1,itm);
+			pstmtupdate.setInt(2,Integer.parseInt(stkid));
+			pstmtupdate.setInt(3,Integer.parseInt(qty));
+			pstmtupdate.setInt(4,Integer.parseInt(origid));
+			pstmtupdate.addBatch();
+		}
+			//if(DEBUGON) dbg += "[UPD] itm: " + itm + " :: stkid: " + stkid + " :: origid: " + origid + "\n";
+	}
+
+	pstmtupdate.executeBatch(); pstmtupdate.close();
+	pstmtinsert.executeBatch(); pstmtinsert.close();
+	sql.close();
+
+	//if(DEBUGON) debugbox.setValue(dbg);
+}
+
+/**
+ * Check scan-items or loaded-items from tblStockOutDetail 's stock-code
+ * hi-lite unmatching ones
+ */
+void checkScanItemStockCode()
+{
+	scanitmlb = scanitems_holder.getFellowIfAny("itemcodes_lb");
+	checkUpdateStockCode(scanitems_holder,"itemcodes_lb",ITEM_CODE_POS,ITEM_STOCKCODE_POS,ITEM_STKID_POS);
+	if(scanitmlb != null) // hi-lite un-matching selected outbound stock-code against scan-items
+	{
+		ts = scanitmlb.getItems().toArray();
+		for(i=0;i<ts.length;i++)
+		{
+			skc = lbhand.getListcellItemLabel(ts[i],ITEM_STOCKCODE_POS);
+			if(!glob_sel_stockcode.equals(skc))
+			{
+				setListcellItemStyle(ts[i],ITEM_STOCKCODE_POS,"background:#CC3838;font-size:9px");
+			}
+		}
+	}
+}
+
+/**
+ * Check in listbox column iscancol item against StockList for stock-code
+ * @param iholder  DIV holder
+ * @param ilbid    listbox ID
+ * @param iscancol items column to scan
+ * @param istkcol  stock-code to update
+ * @param istkidcol  StockMasterDetail ID
+ */
+void checkUpdateStockCode(Div iholder, String ilbid, int iscancol, int istkcol, int istkidcol)
+{
+	prvlb = iholder.getFellowIfAny(ilbid);
+	if(prvlb == null) return;
+	ts = prvlb.getItems().toArray();
+	if(ts.length == 0) return;
+
+	Sql sql = wms_Sql();
+	for(i=0;i<ts.length;i++)
+	{
+		sci = lbhand.getListcellItemLabel(ts[i],iscancol);
+		if(!sci.equals(""))
+		{
+			sqlstm = "select ID,Stock_Code from StockMasterDetails where ID=" +
+			"(select stk_id from StockList where Itemcode='" + sci + "' limit 1);";
+
+			r = (GroovyRowResult)sql.firstRow(sqlstm);
+
+			if(r != null)
+			{
+				lbhand.setListcellItemLabel(ts[i],istkidcol, kiboo.checkNullString(r.get("ID").toString()));
+				lbhand.setListcellItemLabel(ts[i],istkcol, kiboo.checkNullString(r.get("Stock_Code")));
+			}
+		}
+	}
+	sql.close();
+}
+
+/**
+ * Clear everything in pipes and refresh -- for user to see the latest movement when system is live
+ * should be able to use in a timer, need to check for concurrency concern
+ */
+void refreshPipes()
+{
+	Set set = glob_MyPipesMap.entrySet(); Iterator i = set.iterator();
+	while(i.hasNext()) // clear everything in the pipes
+	{
+		Map.Entry me = (Map.Entry)i.next();
+		krows = me.getValue();
+		chd = krows.getChildren().toArray();
+		for(c=0;c<chd.length;c++)
+		{
+			chd[c].setParent(null);
+		}
+	}
+
+	populateOutbounds();
+}
+
+]]>
+</zscript>
+
+<popup id="addbacklogpop">
+	<div sclass="shadowbox" style="background:#328CCD" width="650px">
+		<label style="color:#ffffff" value=":: Link Job" />
+		<separator height="3px" />
+		<hbox>
+			<label value="Start" sclass="k9b" />
+			<datebox id="ab_startdate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self);" />
+			<label value="End" sclass="k9b" />
+			<datebox id="ab_enddate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self);" />
+			<textbox id="ab_searhtxt_tb" sclass="k9" />
+			<button label="Load/Search" sclass="k9mo" onClick='backlog_AddJob(ab_startdate,ab_enddate,ab_searhtxt_tb,ab_jobs_holder,"ab_jobs_lb",jobslb_hds)' />
+		</hbox>
+		<separator height="3px" />
+		<div id="ab_jobs_holder" />
+		<separator height="3px" />
+		<button sclass="k9mo" label="Link job backlog" onClick="backlog_InsertJob()" />
+	</div>
+</popup>
+
+<menupopup id="qtContextMenu">
+	<menuitem id="linkjob_m" label="Link to job" onClick="qtContextDo(self)" />
+	<menuitem id="jobnotes_m" label="Job notes" onClick="qtContextDo(self)" />
+	<menuitem id="subtask_m" label="Sub tasks" onClick="qtContextDo(self)" />
+	<menuitem id="otherthing_m" label="Others" onClick="qtContextDo(self)" />
+</menupopup>
+
+<popup id="edititem_pop">
+	<div sclass="shadowbox" style="${NEWSTOCKITEM_BACKGROUND}" width="300px">
+		<grid sclass="GridLayoutNoBorder">
+			<rows>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Item code" sclass="k9b" />
+					<textbox id="i_itemcode_tb" sclass="k9" width="99%" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}" visible="false">
+					<label value="Location / Bin" sclass="k9b" />
+					<textbox id="i_bin_tb" sclass="k9" width="99%" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}" visible="false" >
+					<button label="Use this" sclass="k9mo" onClick="insertBinSelector(i_mainbin,i_mainbinno,i_shelfno,i_partino,i_bin_tb)" />
+					<hbox>
+						<listbox id="i_mainbin" mold="select" sclass="k9" />
+						<listbox id="i_mainbinno" mold="select" sclass="k9" />
+						<listbox id="i_shelfno" mold="select" sclass="k9" />
+						<listbox id="i_partino" mold="select" sclass="k9" />
+						<label value="(eg T1-2-3)" sclass="k9" />
+					</hbox>
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Quantity" sclass="k9b" />
+					<textbox id="i_quantity_tb" sclass="k9" width="40%" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}" visible="false">
+					<label value="Cost" sclass="k9b" />
+					<textbox id="i_cost_tb" sclass="k9" width="40%" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<separator />
+					<hbox>
+						<button id="upditem_b" label="Update" sclass="k9mo" onClick="edititem_pop.close(); funcDo(self.getId())" />
+						<button label="Close" sclass="k9mo" onClick="edititem_pop.close()" />
+					</hbox>
+				</row>
+			</rows>
+		</grid>
+	</div>
+</popup>
+
+<style src="/real-world.css" />
+<style>
+	.GridLayoutNoBorder tr.z-row td.z-row-inner, tr.z-row .z-cell, div.z-grid
+	{
+		border: none; overflow: hidden; zoom: 1;
+		border-top: none; border-left: none; border-right: none; border-bottom: none;
+	}
+	.wbo { font-size:9px;color:#ffffff;font-weight:bold }
+</style>
+
+<div width="${PANEL_WIDTH}">
+<panel id="${MYPANEL}" title="${MYTITLE} ${MYVERSION}" border="none" collapsible="true" closable="true" >
+<panelchildren style="background:#363A48">
+	<label id="debugbox" multiline="true" visible="${DEBUGON}" />
+
+	<hbox>
+		<button id="blindbutt" label="-" onClick="blindTings_withTitle(self,kanboard_thing,blindlabel);workarea.setVisible(false)" />
+		<label id="blindlabel" value="Show backlogs board" style="font-weight:bold;color:#ffffff" visible="false" />
+		<separator width="10px" />
+		<button id="refreshpipes_b" sclass="k9mo" label="Refresh" onClick="refreshPipes()" />
+	</hbox>
+
+	<separator height="5px" bar="true" />
+	<div id="kanboard_thing" visible="true" >
+		<hbox>
+			<div id="backlog_holder" width="300px" height="${BAR_HEIGHT}" droppable="pipefun" onDrop="pipeDrop(event,self);" >
+				<label value="Backlogs" style="color:#E96715;font-weight:bold;padding-left:10px" />
+				<separator height="5px" />
+				<grid>
+					<rows id="d_rows1">
+					</rows>
+				</grid>
+			</div>
+
+			<div width="${SEPARATOR_WIDTH}" style="${SEPARATOR_COLOR}" height="${BAR_HEIGHT}" />
+
+			<div id="ready_holder" width="300px" height="${BAR_HEIGHT}" droppable="pipefun" onDrop="pipeDrop(event,self);" >
+				<label value="Staging / WIP" style="color:#E96715;font-weight:bold;padding-left:10px" />
+				<separator height="5px" />
+				<grid>
+					<rows id="d_rows2">
+					</rows>
+				</grid>
+			</div>
+
+			<div width="${SEPARATOR_WIDTH}" style="${SEPARATOR_COLOR}" height="${BAR_HEIGHT}" />
+
+			<div id="wip_holder" width="300px" height="${BAR_HEIGHT}" droppable="pipefun" onDrop="pipeDrop(event,self);" >
+				<label value="Transit" style="color:#E96715;font-weight:bold;padding-left:10px" />
+				<separator height="5px" />
+				<grid>
+					<rows id="d_rows3">
+					</rows>
+				</grid>
+			</div>
+
+			<div width="${SEPARATOR_WIDTH}" style="${SEPARATOR_COLOR}" height="${BAR_HEIGHT}" />
+
+			<div id="done_holder" width="300px" height="${BAR_HEIGHT}" droppable="pipefun" onDrop="pipeDrop(event,self);" >
+				<label value="Done" style="color:#E96715;font-weight:bold;padding-left:10px" />
+				<separator height="5px" />
+				<grid>
+					<rows id="d_rows4">
+					</rows>
+				</grid>
+			</div>
+		</hbox>
+	</div>
+
+	<separator height="5px" bar="true" />
+	<div id="workarea" visible="false">
+		<hbox>
+			<vbox>
+			<grid sclass="GridLayoutNoBorder" width="400px">
+				<rows>
+					<row style="${ENTRYFORM_STYLE}" spans="3,1">
+						<label id="c_voucherno" sclass="subhead1" />
+						<label id="c_order_type" sclass="subhead1" />
+					</row>
+					<row spans="2">
+						<separator />
+					</row>
+					<row style="${ENTRYFORM_STYLE}" spans="1,3">
+						<label value="Customer" sclass="wbo" />
+						<label id="c_customer_name" width="99%" sclass="k9mo" />
+					</row>
+					<row style="${ENTRYFORM_STYLE}" spans="1,3">
+						<label value="Address1" sclass="wbo" />
+						<label id="c_address1" width="99%" sclass="k9mo" />
+					</row>
+					<row style="${ENTRYFORM_STYLE}" spans="1,3">
+						<label value="Address2" sclass="wbo" />
+						<label id="c_address2" width="99%" sclass="k9mo" />
+					</row>
+					<row style="${ENTRYFORM_STYLE}" spans="1,3">
+						<label value="Address3" sclass="wbo" />
+						<label id="c_address3" width="99%" sclass="k9mo" />
+					</row>
+					<row style="${ENTRYFORM_STYLE}" spans="1,3">
+						<label value="Address4" sclass="wbo" />
+						<label id="c_Address4" width="99%" sclass="k9mo" />
+					</row>
+					<row style="${ENTRYFORM_STYLE}" >
+						<label value="Tel" sclass="wbo" />
+						<label id="c_telephone_no" width="95%" sclass="k9mo" />
+						<label value="Fax" sclass="wbo" />
+						<label id="c_fax_no" width="95%" sclass="k9mo" />
+					</row>
+					<row style="${ENTRYFORM_STYLE}" >
+						<label value="Contact" sclass="wbo" />
+						<label id="c_contact_person1" width="95%" sclass="k9mo" />
+						<label value="Email" sclass="wbo" />
+						<label id="c_E_mail" width="95%" sclass="k9mo" />
+					</row>
+					<row style="${ENTRYFORM_STYLE}" spans="1,1,2">
+						<label value="SalesRep" sclass="wbo" />
+						<label id="c_Salesman_code" width="95%" sclass="k9mo" />
+						<separator />
+					</row>
+				</rows>
+			</grid>
+			<div id="obitems_holder" width="400px" />
+			</vbox>
+
+			<div id="scanworkarea" visible="false">
+				<label id="stockcode_lbl" sclass="subhead1" />
+				<separator height="4px" />
+				<div style="background:#ffffff;" height="10px" />
+
+				<hbox>
+					<vbox>
+						<label value="Scan the picked items serial no." sclass="wbo" />
+						<textbox id="scanitems_tb" multiline="true" width="180px" height="225px" />
+						<button id="capitemcode_b" label="Capture" sclass="k9mo" onClick="funcDo(self.getId())" />
+					</vbox>
+					<vbox>
+						<label id="itemcount_lbl" value="Item counter" sclass="wbo" />
+						<div id="scanitems_holder" />
+						<hbox>
+							<button id="chkdupscan_b" label="Check duplicates" sclass="k9mo" onClick="funcDo(self.getId())" />
+							<button id="chkstkcode_b" label="Check stock-code" sclass="k9mo" onClick="funcDo(self.getId())" />
+							<button id="saveobitems_b" label="Save" sclass="k9mo" onClick="funcDo(self.getId())" />
+							<button id="removeitems_b" label="Remove" sclass="k9mo" onClick="funcDo(self.getId())" />
+						</hbox>
+					</vbox>
+				</hbox>
+			</div>
+
+		</hbox>
+	</div>
+
+<zscript>
+<![CDATA[
+
+Object[] outboundmetaboxes = { c_address1, c_address2, c_address3, c_Address4, c_customer_name, 
+	c_telephone_no, c_fax_no, c_E_mail, c_contact_person1, c_Salesman_code, c_order_type };
+
+String[] outbound_fields = { "Address1","Address2","Address3","Address4","customer_name",
+	"telephone","fax","email","contact","salesrep","order_type" };
+
+Object[] glob_MyPipes = { d_rows1, d_rows2, d_rows3, d_rows4 };
+
+HashMap glob_MyPipesMap = new HashMap();
+glob_MyPipesMap.put("NEW",d_rows1);
+glob_MyPipesMap.put("WIP",d_rows2);
+glob_MyPipesMap.put("TRAN",d_rows3);
+glob_MyPipesMap.put("DONE",d_rows4);
+
+HashMap glob_PipeStatus = new HashMap(); // Hard-coded stages for tblStockOutMaster.stage
+glob_PipeStatus.put("d_rows1","NEW");
+glob_PipeStatus.put("d_rows2","WIP");
+glob_PipeStatus.put("d_rows3","TRAN");
+glob_PipeStatus.put("d_rows4","DONE");
+
+populateOutbounds();
+
+]]>
+</zscript>
+</panelchildren>
+</panel>
+</div>
+</zk>
+

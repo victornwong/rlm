@@ -1,0 +1,1183 @@
+VIEWS in FOCUS5012
+
+ACCOUNTMASTER
+
+SELECT     A.MasterId, A.Sequence, A.Name, A.Code, A.Code2, A.Limit, A.L2, A.Type, A.Attribute, A.Eoff, A.Doff, A.CreditDays, A.Date_, A.Time_, A.Limit2, B.ExtraId, B.Address1YH, 
+B.Address2YH, B.Address3YH, B.TelYH, B.FaxYH, B.ContactYH, B.EmailYH, B.Address4YH, B.ReferalYH, B.MANumberYH, B.SalesRepYH, B.DeliveryToYH, 
+B.RentalTermYH, B.InterestaYH, B.InterestYH, B.StatusYH, B.GroupYH, B.PICYH, B.CSYH, B.RequirementsYH, B.SuspendYH, B.ClassificationYH, B.Credit1YH, 
+B.Credit2YH, B.Credit3YH, B.Credit4YH, B.Credit5YH, B.RemarksYH, B.CreditLimitYH, B.PendingsYH, B.ReasonsYH, B.Memo1YH, B.Memo2YH, B.Memo3YH, 
+B.AdjustmentAmtYH, B.CategoryYH, B.AssignableYH
+FROM         dbo.mr000 AS A INNER JOIN
+dbo.u0000 AS B ON A.MasterId = B.ExtraId
+
+allaccts
+
+SELECT     0 AS BodyId, 0 AS Date_, 0 AS VoucherType, 0 AS VoucherNo, MasterId AS Code, 0 AS BookNo, 0 AS ProductCode, 0 AS Tags0, 0 AS Tags1, 0 AS Tags2, 0 AS Tags3, 
+0 AS Amount1, 0 AS Amount2, 0 AS OriginalAmount, 0 AS Flags, 0 AS DueDate, 0 AS ExtraOff, 0 AS HeaderOff, 0 AS SalesOff, 0 AS BillWiseOff, 0 AS ExtraHeaderOff, 
+0 AS SizeofRec, 0 AS Links0, 0 AS Links1, 0 AS Links2, 0 AS Links3, 0 AS LinkToPrBatch, 0 AS ExchgRate, 0 AS Tags4, 0 AS Tags5, 0 AS Tags6, 0 AS Tags7, 
+0 AS RMAId, 0 AS BinPos, 0 AS BinNoEntries, 0 AS ReserveNo, 0 AS ReserveType
+FROM         dbo.mr000
+
+allprods
+
+SELECT     0 AS BodyId, 0 AS Date_, 0 AS VoucherType, 0 AS VoucherNo, 0 AS Code, 0 AS BookNo, MasterId AS ProductCode, 0 AS Tags0, 0 AS Tags1, 0 AS Tags2, 0 AS Tags3, 
+0 AS Amount1, 0 AS Amount2, 0 AS OriginalAmount, 0 AS Flags, 0 AS DueDate, 0 AS ExtraOff, 0 AS HeaderOff, 0 AS SalesOff, 0 AS BillWiseOff, 0 AS ExtraHeaderOff, 
+0 AS SizeofRec, 0 AS Links0, 0 AS Links1, 0 AS Links2, 0 AS Links3, 0 AS LinkToPrBatch, 0 AS ExchgRate, 0 AS Tags4, 0 AS Tags5, 0 AS Tags6, 0 AS Tags7, 
+0 AS RMAId, 0 AS BinPos, 0 AS BinNoEntries, 0 AS ReserveNo, 0 AS ReserveType
+FROM         dbo.mr001
+
+BAgeing
+
+SELECT     CONVERT(datetime, dbo.ConvertFocusDate(d.Date_), 105) AS VDate, d.VoucherNo, d.BillWiseOff, p.Code, p.Ref, p.RefId, - (1 * p.Amount) AS Amt, m.MasterId, m.Name, 
+m.Code2, u.ExtraId, u.Address1YH, u.Address2YH, u.Address3YH, u.TelYH, u.CreditLimitYH
+FROM         dbo.data AS d INNER JOIN
+dbo.pendingrefs AS p ON d.BillWiseOff = p.RefId INNER JOIN
+dbo.mr000 AS m ON p.Code = m.MasterId LEFT OUTER JOIN
+dbo.u0000 AS u ON m.MasterId = u.ExtraId
+WHERE     (d.BillWiseOff <> 0) AND (d.Amount2 <> 0)
+
+chqno
+
+SELECT     d .voucherno, d .vouchertype, u.chequenoyh, d .code Acc
+FROM         data d, u0010 u
+WHERE     d .extraheaderoff = u.extraid AND d .vouchertype = 5888
+UNION ALL
+SELECT DISTINCT d .voucherno, d .vouchertype, u.chequenoyh, d .code Acc
+FROM         data d, u0010 u
+WHERE     d .extraheaderoff = u.extraid AND d .vouchertype = 4608
+
+datafa
+
+SELECT     BodyId, Date_, VoucherType, VoucherNo, Code, BookNo, ProductCode, Tags0, Tags1, Tags2, Tags3, Amount1, Amount2, OriginalAmount, Flags, DueDate, 
+isnull(ExtraOff, 0) ExtraOff, HeaderOff, isnull(SalesOff, 0) SalesOff, BillWiseOff, ExtraHeaderOff, SizeofRec, Links0, Links1, Links2, Links3, LinkToPrBatch, ExchgRate, 
+Tags4, Tags5, Tags6, Tags7, isnull(RMAId, 0) RMAId, isnull(BinPos, 0) BinPos, BinNoEntries, ReserveNo, ReserveType
+FROM         data WITH (ReadUnCommitted)
+WHERE     (data.Flags & 0x400) = 0x400
+UNION
+SELECT     BodyId, Date_, VoucherType, VoucherNo, BookNo AS Code, Code AS BookNo, ProductCode, Tags0, Tags1, Tags2, Tags3, Amount2 AS Amount1, Amount1 AS Amount2, 
+- OriginalAmount, Flags, DueDate, isnull(ExtraOff, 0) ExtraOff, HeaderOff, isnull(SalesOff, 0) SalesOff, BillWiseOff, ExtraHeaderOff, SizeofRec, Links0, Links1, Links2, 
+Links3, LinkToPrBatch, ExchgRate, Tags4, Tags5, Tags6, Tags7, isnull(RMAId, 0) RMAId, isnull(BinPos, 0) BinPos, BinNoEntries, ReserveNo, ReserveType
+FROM         data WITH (ReadUnCommitted)
+WHERE     (data.Flags & 0x400) = 0x400
+
+deliveryview
+
+SELECT     a.BodyId, CONVERT(datetime, dbo.ConvertFocusDate(a.Date_), 105) AS DelDate, a.VoucherType, a.VoucherNo, a.Code, a.BookNo, a.ProductCode, a.Tags0, a.Tags1, 
+a.Tags2, a.Tags3, a.Amount1, a.Amount2, a.OriginalAmount, a.Flags, a.DueDate, a.ExtraOff, a.HeaderOff, a.SalesOff, a.BillWiseOff, a.ExtraHeaderOff, a.SizeofRec, 
+a.Links0, a.Links1, a.Links2, a.Links3, a.LinkToPrBatch, a.ExchgRate, a.Tags4, a.Tags5, a.Tags6, a.Tags7, a.RMAId, a.BinPos, a.BinNoEntries, a.ReserveNo, 
+a.ReserveType, a.NoBillwise, ABS(b.Quantity) AS quantity, b.Output6, b.Output0 AS RMK, b.Output1 AS Export, b.Output2 AS Cons, b.Output3 AS Intreq, 
+b.Output4 AS Promo, b.Output5 AS Rental, b.Output7 AS StkMon, b.Output8 AS Stksys, b.Output9 AS Stknb
+FROM         dbo.data AS a INNER JOIN
+dbo.indta AS b ON a.SalesOff = b.SalesId
+WHERE     (a.VoucherType = 6144)
+
+deliveryview1
+
+SELECT     a.BodyId, CONVERT(datetime, dbo.ConvertFocusDate(a.Date_), 105) AS DelDate, a.VoucherType, a.VoucherNo, a.Code, a.BookNo, a.ProductCode, a.Tags0, a.Tags1, 
+a.Tags2, a.Tags3, a.Amount1, a.Amount2, a.OriginalAmount, a.Flags, a.DueDate, a.ExtraOff, a.HeaderOff, a.SalesOff, a.BillWiseOff, a.ExtraHeaderOff, a.SizeofRec, 
+a.Links0, a.Links1, a.Links2, a.Links3, a.LinkToPrBatch, a.ExchgRate, a.Tags4, a.Tags5, a.Tags6, a.Tags7, a.RMAId, a.BinPos, a.BinNoEntries, a.ReserveNo, 
+a.ReserveType, a.NoBillwise, ABS(b.Quantity) AS quantity, b.Output6
+FROM         dbo.data AS a LEFT OUTER JOIN
+dbo.indta AS b ON a.SalesOff = b.SalesId
+WHERE     (a.VoucherType = 6144) AND (a.Amount1 < 0)
+
+insurance_tk1
+
+SELECT     TOP (100) PERCENT CONVERT(datetime, dbo.ConvertFocusDate(d.Date_), 112) AS vdate, d.VoucherNo, a.Name AS customer_name,
+(SELECT     TOP (1) ri.DORefYH
+FROM          dbo.data AS d2 LEFT OUTER JOIN
+dbo.u001b AS ri ON ri.ExtraId = d.ExtraHeaderOff
+WHERE      (d2.VoucherNo = d.VoucherNo)) AS DONo,
+(SELECT     TOP (1) ri.DeliveryToYH
+FROM          dbo.data AS d2 LEFT OUTER JOIN
+dbo.u001b AS ri ON ri.ExtraId = d.ExtraHeaderOff
+WHERE      (d2.VoucherNo = d.VoucherNo)) AS DelAddr,
+(SELECT     TOP (1) CASE u.contractstartyh WHEN 0 THEN NULL ELSE CONVERT(datetime, focus5012.dbo.ConvertFocusDate(u.contractstartyh), 112) 
+END AS Expr1
+FROM          dbo.data AS d2 LEFT OUTER JOIN
+dbo.u011b AS u ON u.ExtraId = d2.ExtraOff
+WHERE      (d2.VoucherNo = d.VoucherNo)) AS InsIncept,
+(SELECT     TOP (1) CASE u.contractendyh WHEN 0 THEN NULL ELSE CONVERT(datetime, focus5012.dbo.ConvertFocusDate(u.contractendyh), 112) 
+END AS Expr1
+FROM          dbo.data AS d2 LEFT OUTER JOIN
+dbo.u011b AS u ON u.ExtraId = d2.ExtraOff
+WHERE      (d2.VoucherNo = d.VoucherNo)) AS InsExp, dbo.grossByItemType('RW12045', 'NB') AS nb_gross, dbo.grossByItemType(d.VoucherNo, 'DT') AS dt_gross, 
+dbo.grossByItemType(d.VoucherNo, 'MT') AS mt_gross, dbo.grossByItemType(d.VoucherNo, 'SVR') AS svr_gross, dbo.qtyByItemType(d.VoucherNo, 'NB') AS nb_qty, 
+dbo.qtyByItemType(d.VoucherNo, 'DT') AS dt_qty, dbo.qtyByItemType(d.VoucherNo, 'MT') AS mt_qty, dbo.qtyByItemType(d.VoucherNo, 'SVR') AS svr_qty, 
+ri.RemarksYH, d.BookNo
+FROM         dbo.data AS d LEFT OUTER JOIN
+dbo.mr008 AS ro ON ro.MasterId = d.Tags6 LEFT OUTER JOIN
+dbo.mr000 AS a ON a.MasterId = d.BookNo LEFT OUTER JOIN
+dbo.u001b AS ri ON ri.ExtraId = d.ExtraHeaderOff
+WHERE     (d.VoucherType = 3329) AND (ro.Name LIKE '%insurance%') AND (ri.RemarksYH NOT LIKE '%partial%' OR
+ri.RemarksYH NOT LIKE 'Partial%') AND (CONVERT(datetime, dbo.ConvertFocusDate(d.Date_), 112) BETWEEN '2014-09-01' AND '2014-09-30')
+ORDER BY d.VoucherNo, d.BodyId
+
+invdetail
+
+SELECT     p.Name, m.Code2 AS AssetTag, m.Code AS serial, b.QtyBal AS Qty, u.ShipmentCodeYH AS ShipmentCode, u.GradeYH AS grade, pl.Name AS pallet, 
+u.BrandYH AS Brand, u.ItemTypeYH AS Item, u.ModelYH AS Model, u.ProcessorYH AS Processor, u.MonitorSizeYH AS MonitorSize, u.MonitorTypeYH AS MonitorType,
+u.ColourYH AS colour, u.CasingYH AS casing, u.COA1YH AS COA, u.COA2YH AS COA2, u.RAMSizeYH AS RAM, u.HDDSizeYH AS HDD, u.CD1YH AS Cdrom1, 
+u.CD2YH AS CDrom2, u.CommentsYH AS Comment, u.ReservedForYH AS ReservedFor, u.ReserveDtYH AS ReservedDate, u.WebcamYH, u.BluetoothYH, 
+u.FingerPrintYH, u.CardReaderYH
+FROM         dbo.mr001 AS m INNER JOIN
+dbo.u0001 AS u ON m.Eoff = u.ExtraId INNER JOIN
+dbo.mr008 AS p ON u.ProductNameYH = p.MasterId INNER JOIN
+dbo.itembal AS b ON m.MasterId = b.code INNER JOIN
+dbo.mr003 AS pl ON u.PalletNoYH = pl.MasterId
+
+itembal
+
+SELECT     Code, SUM(Qiss + Qrec) AS QtyBal
+FROM         dbo.ibals
+WHERE     (Code > 0)
+GROUP BY Code
+
+L1
+
+SELECT     VoucherType, dbo.ConvertFocusDateDisplay(Date_) AS date_, VoucherNo, Amount2 AS Amt, BookNo AS acc, dbo.ConvertFocusDateDisplay(DueDate) AS DD
+FROM         dbo.data
+WHERE     (CONVERT(smalldatetime, dbo.ConvertFocusDateDisplay(Date_), 105) >= '2008-07-30 00:00:00') AND (CONVERT(smalldatetime, dbo.ConvertFocusDateDisplay(Date_), 
+105) <= '2009-04-30 00:00:00') AND (Flags & 0x400 = 0x400)
+
+L2
+
+SELECT     VoucherType, dbo.ConvertFocusDateDisplay(Date_) AS date_, VoucherNo, Amount1 AS Amt, Code AS acc, dbo.ConvertFocusDateDisplay(DueDate) AS DD
+FROM         dbo.data
+WHERE     (CONVERT(smalldatetime, dbo.ConvertFocusDateDisplay(Date_), 105) >= '2008-07-30 00:00:00') AND (CONVERT(smalldatetime, dbo.ConvertFocusDateDisplay(Date_), 
+105) <= '2009-04-30 00:00:00') AND (Flags & 0x400 = 0x400)
+
+
+ledger
+
+SELECT     '0' Vouchertype, '00-00-0000' date_, '00' voucherno, bal amt, acc, '00-00-0000' dd
+FROM         opb
+WHERE     round(bal, 2) <> 0
+UNION ALL
+SELECT     *
+FROM         pdc
+UNION ALL
+SELECT     *
+FROM         l1
+UNION ALL
+SELECT     *
+FROM         l2
+
+mrnview
+
+SELECT     a.BodyId, CONVERT(datetime, dbo.ConvertFocusDate(a.Date_), 105) AS MrnDate, a.VoucherType, a.VoucherNo, a.Code, a.BookNo, a.ProductCode, a.Tags0, a.Tags1, 
+a.Tags2, a.Tags3, a.Amount1, a.Amount2, a.OriginalAmount, a.Flags, a.DueDate, a.ExtraOff, a.HeaderOff, a.SalesOff, a.BillWiseOff, a.ExtraHeaderOff, a.SizeofRec, 
+a.Links0, a.Links1, a.Links2, a.Links3, a.LinkToPrBatch, a.ExchgRate, a.Tags4, a.Tags5, a.Tags6, a.Tags7, a.RMAId, a.BinPos, a.BinNoEntries, a.ReserveNo, 
+a.ReserveType, a.NoBillwise, ABS(b.Quantity) AS quantity
+FROM         dbo.data AS a INNER JOIN
+dbo.indta AS b ON a.SalesOff = b.SalesId
+WHERE     (a.VoucherType = 1280)
+
+New_GRN_Listing
+
+SELECT     d .VoucherNo AS [New GRN No], m.Name, m.Code2 AS [Asset Tag], m.Code AS SN, u.ShipmentCodeYH AS ShipmentCode, 
+dbo.u002c.ShipmentCodeYH AS newshipcode, p.Name AS [Product Name], u.ModelYH AS Model, u.COA1YH AS COA, u.ProcessorYH AS Processor, 
+u.GradeYH AS Grade, u.RAMSizeYH AS RAM, u.ItemTypeYH AS [Item Type], pl.Name AS PalletNo, u.RemarkYH AS Remark, u.CommentsYH AS Comments, 
+u.HDDSizeYH AS HDD
+FROM         dbo.mr001 AS m INNER JOIN
+dbo.data AS d ON m.MasterId = d .ProductCode INNER JOIN
+dbo.u0001 AS u ON m.Eoff = u.ExtraId INNER JOIN
+dbo.mr003 AS pl ON u.PalletNoYH = pl.MasterId INNER JOIN
+dbo.mr008 AS p ON u.ProductNameYH = p.MasterId INNER JOIN
+dbo.u002c ON d .ExtraHeaderOff = dbo.u002c.ExtraId
+WHERE     (d .VoucherType = '1281')
+UNION
+SELECT     d .VoucherNo AS [New GRN No], m.Name, m.Code2 AS [Asset Tag], m.Code AS SN, u.ShipmentCodeYH AS ShipmentCode, 
+Focus5011.dbo.u002c.ShipmentCodeYH AS newshipcode, p.Name AS [Product Name], u.ModelYH AS Model, u.COA1YH AS COA, u.ProcessorYH AS Processor, 
+u.GradeYH AS Grade, u.RAMSizeYH AS RAM, u.ItemTypeYH AS [Item Type], pl.Name AS PalletNo, u.RemarkYH AS Remark, u.CommentsYH AS Comments, 
+u.HDDSizeYH AS HDD
+FROM         Focus5011.dbo.mr001 AS m INNER JOIN
+Focus5011.dbo.data AS d ON m.MasterId = d .ProductCode INNER JOIN
+Focus5011.dbo.u0001 AS u ON m.Eoff = u.ExtraId INNER JOIN
+Focus5011.dbo.mr003 AS pl ON u.PalletNoYH = pl.MasterId INNER JOIN
+Focus5011.dbo.mr008 AS p ON u.ProductNameYH = p.MasterId INNER JOIN
+Focus5011.dbo.u002c ON d .ExtraHeaderOff = Focus5011.dbo.u002c.ExtraId
+WHERE     (d .VoucherType = '1281')
+
+OPB
+
+SELECT     SUM(bal) AS bal, acc, '00-00-0000' AS DD
+FROM         (SELECT     SUM(Amount1) AS bal, Code AS acc
+FROM          dbo.data
+WHERE      (CONVERT(smalldatetime, dbo.ConvertFocusDateDisplay(Date_), 105) < '2008-07-30 00:00:00') AND (Flags & 0x400 = 0x400)
+GROUP BY Code
+UNION
+SELECT     SUM(Amount2) AS bal, BookNo AS acc
+FROM         dbo.data
+WHERE     (CONVERT(smalldatetime, dbo.ConvertFocusDateDisplay(Date_), 105) < '2008-07-30 00:00:00') AND (Flags & 0x400 = 0x400)
+GROUP BY BookNo) AS a
+GROUP BY acc
+
+opbdetails
+
+SELECT     a.VoucherNo, a.ExtraHeaderOff, b.ExtraId, b.NarrationYH, b.RemarksYH
+FROM         dbo.data AS a INNER JOIN
+dbo.u0011 AS b ON a.ExtraHeaderOff = b.ExtraId
+
+Outstanding
+
+SELECT     r.Code, r.Ref & 0x7fffffff AS Ref, SUM(CASE WHEN r.Ref < 0 THEN r.RefId ELSE 0 END) AS RefId, SUM(r.Amount) AS Amount, 
+SUM(CASE WHEN r.Ref < 0 THEN CASE WHEN r.DueDate = 0 THEN r.Date_ ELSE r.Date_ END ELSE 0 END) AS DueDate, 
+CASE WHEN r.duedate = 0 THEN r.date_ ELSE r.date_ END AS duedate1, '2009-04-30 00:00:00' AS Repdate
+FROM         dbo.Refrn AS r INNER JOIN
+dbo.data AS d ON r.RefId = d.BillWiseOff
+WHERE     (d.VoucherType & 0xff00 <> 5888) AND (CONVERT(smalldatetime, dbo.ConvertFocusDateDisplay(r.Date_), 105) <= '2009-04-30 00:00:00')
+GROUP BY r.Code, r.DueDate, r.Date_, r.Ref & 0x7fffffff
+HAVING      (SUM(r.Amount) <> 0)
+
+outstanding1
+
+SELECT     Code, Ref, RefId, Amount, duedate1, Repdate, CASE duedate1 WHEN 0 THEN 0 ELSE CONVERT(smalldatetime, dbo.convertfocusdatedisplay(DueDate1), 103) 
+END AS DD
+FROM         dbo.Outstanding
+
+partsall_0
+
+SELECT     p.Name, m.Code2 AS AssetTag, m.Code AS serial, b.QtyBal AS Qty, u.ShipmentCodeYH AS ShipmentCode, u.GradeYH AS grade, pl.Name AS pallet, 
+pl.MasterId AS plmasterid, u.BrandYH AS Brand, u.ItemTypeYH AS Item, u.ModelYH AS Model, u.ProcessorYH AS Processor, u.MonitorSizeYH AS MonitorSize, 
+u.MonitorTypeYH AS MonitorType, u.ColourYH AS colour, u.CasingYH AS casing, u.COA1YH AS COA, u.COA2YH AS COA2, u.RAMSizeYH AS RAM, 
+u.HDDSizeYH AS HDD, u.CD1YH AS Cdrom1, u.CD2YH AS CDrom2, u.CommentsYH AS Comment, u.ReservedForYH AS ReservedFor, 
+u.ReserveDtYH AS ReservedDate, u.WebcamYH, u.BluetoothYH, u.FingerPrintYH, u.CardReaderYH
+FROM         dbo.mr001 AS m INNER JOIN
+dbo.u0001 AS u ON m.Eoff = u.ExtraId INNER JOIN
+dbo.mr008 AS p ON u.ProductNameYH = p.MasterId INNER JOIN
+dbo.itembal AS b ON m.MasterId = b.code INNER JOIN
+dbo.mr003 AS pl ON u.PalletNoYH = pl.MasterId
+
+partsall_1
+
+SELECT     p.Name, m.Code2 AS AssetTag, m.Code AS serial, b.QtyBal AS Qty, u.ShipmentCodeYH AS ShipmentCode, u.GradeYH AS grade, pl.Name AS pallet, 
+u.BrandYH AS Brand, u.ItemTypeYH AS Item, u.ModelYH AS Model, u.ProcessorYH AS Processor, u.MonitorSizeYH AS MonitorSize, u.MonitorTypeYH AS MonitorType,
+u.ColourYH AS colour, u.CasingYH AS casing, u.COA1YH AS COA, u.COA2YH AS COA2, u.RAMSizeYH AS RAM, u.HDDSizeYH AS HDD, u.CD1YH AS Cdrom1, 
+u.CD2YH AS CDrom2, u.CommentsYH AS Comment, u.ReservedForYH AS ReservedFor, u.ReserveDtYH AS ReservedDate, u.WebcamYH, u.BluetoothYH, 
+u.FingerPrintYH, u.CardReaderYH
+FROM         dbo.mr001 AS m INNER JOIN
+dbo.u0001 AS u ON m.Eoff = u.ExtraId INNER JOIN
+dbo.mr008 AS p ON u.ProductNameYH = p.MasterId INNER JOIN
+dbo.itembal AS b ON m.MasterId = b.code INNER JOIN
+dbo.mr003 AS pl ON u.PalletNoYH = pl.MasterId
+WHERE     (b.QtyBal > 0)
+
+pdc
+
+SELECT     VoucherType, dbo.ConvertFocusDateDisplay(Date_) AS date_, VoucherNo, Amount1 AS Amt, Code AS acc, dbo.ConvertFocusDateDisplay(DueDate) AS DD
+FROM         dbo.data
+WHERE     (CONVERT(smalldatetime, dbo.ConvertFocusDateDisplay(Date_), 105) <= '2009-04-30 00:00:00') AND (VoucherType & 0xff00 = 5888 OR
+VoucherType & 0xff00 = 7168) AND (Flags & 8192 <> 8192)
+
+pendingbatches
+
+SELECT     dbo.data.ProductCode, dbo.batch.BatchNo, SUM(dbo.indta.Qty2) AS Qty2, MAX(CASE WHEN indta.Qty2 > 0 THEN indta.SalesId ELSE 0 END) AS SalesId, 
+SUM(CASE WHEN indta.Qty2 > 0.0 THEN abs(indta.Output0) ELSE - abs(indta.Output0) END) AS AltQty
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId INNER JOIN
+dbo.batch ON dbo.data.SalesOff = dbo.batch.SalesId
+WHERE     (dbo.data.Flags & 0x200 = 0x200)
+GROUP BY dbo.data.ProductCode, dbo.batch.BatchNo
+HAVING      (SUM(dbo.indta.Qty2) > 0)
+
+pendingbatchestagwise
+
+SELECT     dbo.data.ProductCode, dbo.data.Tags0 AS Tag, dbo.batch.BatchNo, SUM(dbo.indta.Qty2) AS Qty2, MAX(CASE WHEN indta.Qty2 > 0 THEN indta.SalesId ELSE 0 END) 
+AS SalesId, SUM(CASE WHEN indta.Qty2 > 0.0 THEN abs(indta.Output0) ELSE - abs(indta.Output0) END) AS AltQty
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId INNER JOIN
+dbo.batch ON dbo.data.SalesOff = dbo.batch.SalesId
+WHERE     (dbo.data.Flags & 0x200 = 0x200)
+GROUP BY dbo.data.ProductCode, dbo.data.Tags0, dbo.batch.BatchNo
+HAVING      (SUM(dbo.indta.Qty2) > 0)
+
+pendingrefs
+
+SELECT     Code, Ref & 0x7fffffff AS Ref, SUM(CASE WHEN Ref < 0 THEN RefId ELSE 0 END) AS RefId, SUM(Amount) AS Amount, 
+SUM(CASE WHEN Ref < 0 THEN CASE WHEN DueDate = 0 THEN Date_ ELSE DueDate END ELSE 0 END) AS DueDate, 
+SUM(CASE WHEN Ref < 0 THEN Amount ELSE 0 END) AS BillAmount
+FROM         dbo.Refrn
+GROUP BY Code, Ref & 0x7fffffff
+HAVING      (SUM(Amount) <> 0)
+
+pendingrefsdepwise
+
+SELECT     Code, Dep, Ref & 0x7fffffff AS Ref, SUM(CASE WHEN Ref < 0 THEN RefId ELSE 0 END) AS RefId, SUM(Amount) AS Amount
+FROM         dbo.Refrn
+GROUP BY Code, Dep, Ref & 0x7fffffff
+HAVING      (SUM(Amount) <> 0)
+
+PRODUCTMASTER
+
+SELECT     A.MasterId, A.Sequence, A.Name, A.Code, A.Code2, A.Limit, A.L2, A.Type, A.Attribute, A.Eoff, A.Doff, A.CreditDays, A.Date_, A.Time_, A.Limit2, B.ExtraId, B.BrandYH, 
+B.ModelYH, B.CasingYH, B.ColourYH, B.FDDYH, B.ModemYH, B.SoundYH, B.USBYH, B.USBSlotYH, B.TouchPadYH, B.GradeYH AS BatteryYH, 
+B.HDDSizeYH AS GradeYH, B.HDDTypeYH AS HDDSizeYH, B.CD1YH AS HDDTypeYH, B.CD2YH AS CD1YH, B.ItemTypeYH AS CD2YH, 
+B.ShipmentCodeYH AS ItemTypeYH, B.ProductNameYH AS ShipmentCodeYH, B.ProcessorYH AS ProductNameYH, B.DateCodeYH AS ProcessorYH, 
+B.RemarkYH AS DateCodeYH, B.COA1YH AS RemarkYH, B.COA2YH AS COA1YH, B.RAMTypeYH AS COA2YH, B.RAMSlotYH AS RAMTypeYH, 
+B.PalletNoYH AS RAMSlotYH, B.RAMSizeYH AS PalletNoYH, B.GraphicYH AS RAMSizeYH, B.GraphicSlotYH AS GraphicYH, B.NetworkYH AS GraphicSlotYH, 
+B.MonitorSizeYH AS NetworkYH, B.MonitorTypeYH AS MonitorSizeYH, B.MonitorPortYH AS MonitorTypeYH, B.COACodeYH AS MonitorPortYH, 
+B.CommentsYH AS COACodeYH, B.SerialNoYH AS CommentsYH, B.BranchYH AS SerialNoYH, B.ReservedForYH AS BranchYH, B.ReserveDtYH AS PRODUCTNAME, 
+B.BatteryYH, B.WebcamYH, B.BluetoothYH, B.FingerPrintYH, B.CardReaderYH, B.RAMQtyYH, B.COA1KeyYH, B.COA2KeyYH, C.Name AS PRODUCTNAME
+FROM         dbo.mr001 AS A INNER JOIN
+dbo.u0001 AS B ON A.MasterId = B.ExtraId INNER JOIN
+dbo.mr008 AS C ON B.ProductNameYH = C.MasterId
+
+rem2
+
+SELECT     d.VoucherNo, d.VoucherType, u.RemarksYH, d.Code AS Acc
+FROM         dbo.data AS d INNER JOIN
+dbo.u0110 AS u ON d.ExtraOff = u.ExtraId
+WHERE     (d.VoucherType = 5888)
+
+remarks
+
+SELECT     d .voucherno, d .vouchertype, u.narrationyh remarksyh, d .code Acc
+FROM         data d, u0010 u
+WHERE     d .vouchertype = 4608 AND d .extraheaderoff = u.extraid
+UNION ALL
+SELECT     d .voucherno, d .vouchertype, u.remarksyh, d .code Acc
+FROM         data d, u0111 u
+WHERE     d .extraoff = u.extraid AND d .vouchertype = 3584
+UNION ALL
+SELECT     d .voucherno, d .vouchertype, u.narrationyh remarksyh, d .Bookno Acc
+FROM         data d, u0011 u
+WHERE     d .extraheaderoff = u.extraid AND d .vouchertype = 4096 AND d .billwiseoff > 0
+UNION ALL
+SELECT     d .voucherno, d .vouchertype, u.narrationyh remarksyh, d .Bookno Acc
+FROM         data d, u0011 u
+WHERE     d .extraheaderoff = u.extraid AND d .vouchertype = 3840 AND d .billwiseoff > 0
+UNION ALL
+SELECT     d .voucherno, d .vouchertype, u.narrationyh, d .code Acc
+FROM         data d, u0010 u
+WHERE     d .extraheaderoff = u.extraid AND d .vouchertype = 5888
+UNION ALL
+SELECT     d .voucherno, d .vouchertype, Narrationyh remarksyh, d .bookno Acc
+FROM         data d, u0019 u
+WHERE     d .extraheaderoff = u.extraid AND (d .VoucherType & 0xff00) = 1792 AND amount2 <> 0
+UNION ALL
+SELECT     d .voucherno, d .vouchertype, u.narrationyh remarksyh, d .bookno Acc
+FROM         data d, u0019 u
+WHERE     (d .VoucherType & 0xff00) = 3328 AND d .vouchertype <> 3329 AND d .amount2 <> 0 AND d .extraheaderoff = u.extraid
+UNION ALL
+SELECT     d .voucherno, d .vouchertype, u.narrationyh remarksyh, d .bookno Acc
+FROM         data d, u0012 u
+WHERE     d .vouchertype = 3329 AND d .amount2 <> 0 AND d .extraheaderoff = u.extraid
+
+rentequips_1
+
+SELECT     p.Name, m.Code2 AS AssetTag, m.Code AS serial, b.QtyBal AS Qty, u.ShipmentCodeYH AS ShipmentCode, u.GradeYH AS grade, pl.Name AS pallet, 
+u.BrandYH AS Brand, u.ItemTypeYH AS Item, u.ModelYH AS Model, u.ProcessorYH AS Processor, u.MonitorSizeYH AS MonitorSize, u.MonitorTypeYH AS MonitorType,
+u.ColourYH AS colour, u.CasingYH AS casing, u.COA1YH AS COA, u.COA2YH AS COA2, u.RAMSizeYH AS RAM, u.HDDSizeYH AS HDD, u.CD1YH AS Cdrom1, 
+u.CD2YH AS CDrom2, u.CommentsYH AS Comment, u.ReservedForYH AS ReservedFor, u.ReserveDtYH AS ReservedDate, u.WebcamYH, u.BluetoothYH, 
+u.FingerPrintYH, u.CardReaderYH
+FROM         dbo.mr001 AS m INNER JOIN
+dbo.u0001 AS u ON m.Eoff = u.ExtraId INNER JOIN
+dbo.mr008 AS p ON u.ProductNameYH = p.MasterId INNER JOIN
+dbo.itembal AS b ON m.MasterId = b.code INNER JOIN
+dbo.mr003 AS pl ON u.PalletNoYH = pl.MasterId
+WHERE     (b.QtyBal > 0) AND (u.ItemTypeYH IN ('DT', 'MT', 'NB'))
+
+rentinv
+
+SELECT     VoucherNo, CONVERT(datetime, dbo.ConvertFocusDate(DueDate), 105) AS vdate, VoucherType, BillWiseOff, Tags6, ProductCode, SalesOff, ExtraHeaderOff, ExtraOff, 
+BookNo
+FROM         dbo.data
+WHERE     (VoucherType = 3329) AND (BillWiseOff <> 0)
+
+rentinv2
+
+SELECT     VoucherNo, CONVERT(datetime, dbo.ConvertFocusDate(DueDate), 105) AS vdate, VoucherType, BillWiseOff, Tags6, ProductCode, SalesOff, ExtraHeaderOff, ExtraOff, 
+BookNo
+FROM         dbo.data
+WHERE     (VoucherType = 3329)
+
+t1
+
+SELECT DISTINCT Ref, RefId, COUNT(*) AS cnt
+FROM         dbo.Refrn
+GROUP BY Ref, RefId
+
+t2
+
+SELECT     ref, refid, cnt
+FROM         dbo.t1
+WHERE     (cnt > 1)
+
+v_accbal
+
+SELECT     SUM(bal) AS bal, acc
+FROM         (SELECT     SUM(Amount1) AS bal, Code AS acc
+FROM          dbo.data
+WHERE      (Flags & 0x400 = 0x400)
+GROUP BY Code
+UNION
+SELECT     SUM(Amount2) AS bal, BookNo AS acc
+FROM         dbo.data
+WHERE     (Flags & 0x400 = 0x400)
+GROUP BY BookNo) AS a
+GROUP BY acc
+
+v_accbalpdc
+
+SELECT     SUM(bal) AS bal, acc
+FROM         (SELECT     SUM(Amount1) AS bal, Code AS acc
+FROM          dbo.data
+WHERE      (Flags & 0x400 = 0x400) OR
+(VoucherType & 0xff00 = 5888 OR
+VoucherType & 0xff00 = 7168) AND (Flags & 8192 <> 8192)
+GROUP BY Code
+UNION
+SELECT     SUM(Amount2) AS bal, BookNo AS acc
+FROM         dbo.data
+WHERE     (Flags & 0x400 = 0x400) OR
+(VoucherType & 0xff00 = 5888 OR
+VoucherType & 0xff00 = 7168) AND (Flags & 8192 <> 8192)
+GROUP BY BookNo) AS a
+GROUP BY acc
+
+v_depstock
+
+SELECT     Code AS ProductCode, Dep, SUM(Qiss + Qrec) AS dStock
+FROM         dbo.ibals
+GROUP BY Code, Dep
+
+v_depstock2
+
+SELECT     Code AS ProductCode, Dep, SUM(Qty2) AS dStock
+FROM         dbo.ibals
+GROUP BY Code, Dep
+
+v_drcrbal
+
+SELECT     SUM(drbal) AS drbal, SUM(crbal) AS crbal, acc
+FROM         (SELECT     SUM(CASE WHEN Amount1 < 0.0 THEN Amount1 ELSE 0.0 END) AS drbal, SUM(CASE WHEN Amount1 > 0.0 THEN Amount1 ELSE 0.0 END) AS crbal, 
+Code AS acc
+FROM          dbo.data
+WHERE      (Flags & 0x400 = 0x400)
+GROUP BY Code
+UNION
+SELECT     SUM(CASE WHEN Amount2 < 0.0 THEN Amount2 ELSE 0.0 END) AS drbal, SUM(CASE WHEN Amount2 > 0.0 THEN Amount2 ELSE 0.0 END) AS crbal, 
+BookNo AS acc
+FROM         dbo.data
+WHERE     (Flags & 0x400 = 0x400)
+GROUP BY BookNo) AS a
+GROUP BY acc
+
+v_link1
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 1280)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 1280)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 768)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 769)) AS a
+
+v_link11
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 1281)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 1281)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links1 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links1 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 1280)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 2561)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 1283)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 1284)) AS a
+
+v_link12
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 1281)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 1281)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links1 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links1 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 1280)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 2561)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 1283)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 1284)) AS a
+
+v_link13
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 1281)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 1281)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links1 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links1 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 1280)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 2561)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 1283)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 1284)) AS a
+
+v_link14
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 1280)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 1280)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 768)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 769)) AS a
+
+v_link15
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Amount1 AS Value, Links2 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data
+WHERE      (Links2 <> 0) AND (Flags & 67108864 = 0) AND (VoucherType = 6144)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 6144)
+UNION
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Amount1 AS Value, Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data
+WHERE     (Links0 <> 0) AND (Flags & 524288 = 0) AND (VoucherType = 1792)) AS a
+
+v_link16
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links1 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links1 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 1792)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 1792)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links3 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links3 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 6144)) AS a
+
+v_link2
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 5632)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 5632)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 5633)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 3328)) AS a
+
+v_link3
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links1 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links1 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 5633)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 5633)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 6144)) AS a
+
+v_link4
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 1281)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 1281)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links1 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links1 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 1280)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 2561)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 1283)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 1284)) AS a
+
+v_link5
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 5635)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 5635)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 3329)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links2 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links2 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 5633)) AS a
+
+v_link6
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 5635)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 5635)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 3329)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links2 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links2 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 5633)) AS a
+
+v_link7
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 5636)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 5636)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links1 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links1 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 6144)) AS a
+
+v_link8
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 3330)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 3330)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links3 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links3 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 5633)) AS a
+
+v_link9
+
+SELECT     BodyId, SalesOff, DueDate, ProductCode, Date_, VoucherType, VoucherNo, Value, sortlinkid, IsItBase
+FROM         (SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 1 AS IsItBase
+FROM          dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE      (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 67108864 = 0) AND (dbo.data.VoucherType = 5632)
+UNION ALL
+SELECT     - data.BodyId AS Expr1, data.SalesOff, data.DueDate, data.ProductCode, data.Date_, data.VoucherType, data.VoucherNo, lncry.Value, 
+lncry.LinkId AS sortlinkid, 1 AS IsItBase
+FROM         Focus5011.dbo.lncry AS lncry INNER JOIN
+Focus5011.dbo.data AS data ON lncry.BodyId = data.BodyId
+WHERE     (data.Flags & 67108864 = 0) AND (data.VoucherType = 5632)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 5633)
+UNION
+SELECT     dbo.data.BodyId, dbo.data.SalesOff, dbo.data.DueDate, dbo.data.ProductCode, dbo.data.Date_, dbo.data.VoucherType, dbo.data.VoucherNo, 
+dbo.indta.Qty2 AS Value, dbo.data.Links0 AS sortlinkid, 0 AS IsItBase
+FROM         dbo.data INNER JOIN
+dbo.indta ON dbo.data.SalesOff = dbo.indta.SalesId
+WHERE     (dbo.data.Links0 <> 0) AND (dbo.data.Flags & 524288 = 0) AND (dbo.data.VoucherType = 3328)) AS a
+
+v_Pendinglink1
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link1
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink11
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link11
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink12
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link12
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink13
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link13
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink14
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link14
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink15
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link15
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink16
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link16
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink2
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link2
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink3
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link3
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink4
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link4
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink5
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link5
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink6
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link6
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink7
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link7
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink8
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link8
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_Pendinglink9
+
+SELECT     sortlinkid AS LinkId, MAX(CASE WHEN IsItBase <> 0 THEN BodyId ELSE 0 END) AS BodyId, SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) 
+AS Balance
+FROM         dbo.v_link9
+GROUP BY sortlinkid
+HAVING      (SUM(CASE WHEN IsItBase <> 0 THEN abs(Value) ELSE - abs(Value) END) > 0)
+
+v_reservedstock
+
+SELECT     ProductCode Item, Tag, 24257 Date_, abs(Qty) Qty
+FROM         resvstkopb
+UNION ALL
+SELECT     data.ProductCode Item, data.Tags0 Tag, data.Date_ Date_, (CASE WHEN (data.Flags & 0xc000) = 0x4000 THEN abs(Quantity) ELSE - 1 * abs(Quantity) END) Qty
+FROM         data JOIN
+indta ON data.SalesOff = indta.SalesId
+WHERE     (data.Flags & 0xc000) > 0
+
+v_stock
+
+SELECT     Code AS ProductCode, SUM(Qiss + Qrec) AS dStock
+FROM         dbo.ibals
+GROUP BY Code
+
+v_stock2
+
+SELECT     Code AS ProductCode, SUM(Qty2) AS dStock
+FROM         dbo.ibals
+GROUP BY Code
+
+vw_AdjustAmtDW
+
+SELECT     SUM(r.Amount) AS Adjust, r.Ref & 0x7fffffff AS NewRef, r.RefId, r.Code, d.VoucherNo
+FROM         dbo.data AS d INNER JOIN
+dbo.vtypes AS v ON d.VoucherType = v.VoucherType INNER JOIN
+dbo.Refrn AS r ON d.BillWiseOff = r.RefId
+WHERE     (r.Ref > 0) AND (d.VoucherType = 5888) AND (r.DueDate <= 26836)
+GROUP BY r.Ref, r.Code, r.RefId, d.VoucherNo
+
+vw_AdjustRefs
+
+SELECT     d.VoucherNo, v.Vt, r.Amount, r.Code, d.BookNo, d.BillWiseOff, d.VoucherType, CAST(dbo.ConvertFocusDate(d.Date_) AS datetime) AS AdjDate, d.Date_ AS AdjDateInt, 
+CASE r.DueDate WHEN 0 THEN 0 ELSE CAST(dbo.ConvertFocusDate(r.DueDate) AS datetime) END AS DueAdjDate, r.Date_ AS DueAdjDateInt, 
+r.Ref & 0x7fffffff AS NewRef
+FROM         dbo.data AS d INNER JOIN
+dbo.vtypes AS v ON d.VoucherType = v.VoucherType INNER JOIN
+dbo.Refrn AS r ON d.BillWiseOff = r.RefId
+WHERE     (r.Ref < 0)
+
+vw_getBalBFCustWise
+
+SELECT     MasterId, - 1 * CAST(ISNULL(dbo.balanceonbyDueDt(MasterId, 23295), 0) AS decimal(18, 4)) AS BalanceBF
+FROM         dbo.mr000
+WHERE     (MasterId <> 0)
+
+vw_mr000Fltr
+
+SELECT     a.MasterId, a.Code2, a.Name, a.L2, a.Type, a.Eoff, a.Sequence, a.Code, b.Code2 AS [Parent Group Code], b.Name AS [Parent Group Name], 
+dbo.ufn_FindCustRoot(b.MasterId) AS ParentMID
+FROM         dbo.mr000 AS a INNER JOIN
+dbo.mr000 AS b ON a.L2 = b.MasterId
+
+vw_MthTransactions
+
+SELECT     cast(dbo.ConvertFocusDate(d .Date_) AS datetime) AS VDate, d .Date_ TDate, CASE p.DueDate WHEN 0 THEN 0 ELSE cast(dbo.ConvertFocusDate(p.DueDate) 
+AS datetime) END AS DueDate, p.DueDate PDateInt, VT.Vt, d .VoucherNo, d .VoucherType, cw.BalanceBF, d .BillWiseOff, p.Code, p.RefId, (- 1) 
+* cast(p.Amount AS decimal(18, 4)) AS Amt, m.MasterId, m.Name, m.Code2, m.L2, u.ExtraId, u.Address1YH, u.Address2YH, u.Address3YH, u.TelYH, 
+isnull(u1.ChequeNoYH, '') ChequeNo, isnull(u1.RemarksYH, '') Remarks, CASE d .Vouchertype WHEN 256 THEN isnull(u11.NarrationYH, '') 
+WHEN 3584 THEN isnull(u11.NarrationYH, '') ELSE '' END AS Narration
+FROM         vw_PendingRefBFDate p INNER JOIN
+data d ON p.RefId = d .BillWiseOff INNER JOIN
+mr000 m ON p.Code = m.MasterId INNER JOIN
+VTypes VT ON d .vouchertype = VT.VoucherType LEFT OUTER JOIN
+u0000 u ON m.Eoff = u.ExtraId LEFT OUTER JOIN
+vw_getBalBFCustWise CW ON m.masterId = cw.masterid LEFT OUTER JOIN
+u0010 u1 ON d .Extraheaderoff = u1.extraid LEFT OUTER JOIN
+u0011 u11 ON d .extraheaderoff = u11.extraid
+WHERE     (d .BillWiseOff <> 0) AND d .vouchertype <> 5888 AND p.DueDate >= 23332 AND p.DueDate <= 26836
+UNION
+SELECT     cast(dbo.ConvertFocusDate(23295) AS datetime), 23295, cast(dbo.ConvertFocusDate(23295) AS datetime), 23295, '', '', 0, cw.BalanceBF, 0, m.masterid, 0, 0, 
+m.MasterId, m.Name, m.Code2, m.L2, u.ExtraId, isnull(u.Address1YH, ''), isnull(u.Address2YH, ''), isnull(u.Address3YH, ''), u.TelYH, '', '', ''
+FROM         mr000 m LEFT OUTER JOIN
+u0000 u ON m.Eoff = u.ExtraId LEFT OUTER JOIN
+vw_getBalBFCustWise CW ON m.masterId = cw.masterid
+WHERE     m.masterid NOT IN
+(SELECT     p.code
+FROM          data d INNER JOIN
+vw_PendingRefBFDate p ON d .BillWiseOff = p.RefId
+WHERE      (d .BillWiseOff <> 0) AND d .vouchertype <> 5888 AND p.duedate >= 23332 AND p.DueDate <= 26836)
+
+vw_pendingref
+
+SELECT     Code, Ref & 0x7fffffff AS Ref, CONVERT(bigint, SUM(CASE WHEN Ref < 0 THEN CONVERT(bigint, RefId) ELSE 0 END)) AS RefId, CONVERT(bigint, SUM(Amount)) 
+AS Amount, SUM(CASE WHEN Ref < 0 THEN CASE WHEN DueDate = 0 THEN Date_ ELSE DueDate END ELSE 0 END) AS DueDate
+FROM         dbo.Refrn
+GROUP BY Code, Ref & 0x7fffffff
+HAVING      (SUM(Amount) <> 0)
+
+vw_PendingRefBFDate
+
+SELECT     Code, Ref & 0x7fffffff AS Ref, CONVERT(bigint, SUM(CASE WHEN Ref < 0 THEN CONVERT(bigint, RefId) ELSE 0 END)) AS RefId, SUM(Amount) AS Amount, 
+SUM(CASE WHEN Ref < 0 THEN CASE WHEN DueDate = 0 THEN Date_ ELSE DueDate END ELSE 0 END) AS DueDate
+FROM         dbo.Refrn
+WHERE     (Date_ > 0) AND (DueDate > 0) AND (DueDate <= 26836)
+GROUP BY Code, Ref & 0x7fffffff
+HAVING      (SUM(Amount) <> 0)
+
+vw_PendingRefDateWise
+
+SELECT     Code, Ref & 0x7fffffff AS Ref, CONVERT(bigint, SUM(CASE WHEN Ref < 0 THEN CONVERT(bigint, RefId) ELSE 0 END)) AS RefId, SUM(Amount) AS Amount, 
+SUM(CASE WHEN Ref < 0 THEN CASE WHEN DueDate = 0 THEN Date_ ELSE DueDate END ELSE 0 END) AS DueDate
+FROM         dbo.Refrn
+WHERE     (Date_ > 0) AND (DueDate <= 26836)
+GROUP BY Code, Ref & 0x7fffffff
+HAVING      (SUM(Amount) <> 0)
+
+vw_QtrReport
+
+SELECT     d.Date_, d.BookNo, i.Input0 AS NoofSystem,
+(SELECT     Name
+FROM          dbo.mr000
+WHERE      (MasterId = d.BookNo)) AS Customer,
+(SELECT     Name
+FROM          dbo.mr008
+WHERE      (MasterId = d.Tags6)) AS ProductNAme, x.ContractStartYH, x.ContractEndYH, dbo.ConvertFocusDateDisplay(x.ContractEndYH) AS ContractEnd, 
+d.VoucherNo, u.CustomerRefYH, u.DORefYH, dbo.ConvertFocusDateDisplay(d.Date_) AS InvDate, 
+CASE WHEN u.DeliveryDtYH = x.ContractStartYH THEN '' ELSE abs(datediff(d, dbo.convertfocusdate(x.contractstartYH), dbo.convertfocusdate(u.deliverydtYH))) 
+- 1 END AS NoofDaysPartial, CASE WHEN i.input1 >= 1 THEN Input1 - 1 END AS RemainQtr, dbo.ConvertFocusDateDisplay(x.ContractStartYH) AS ContractStartDate, 
+dbo.ConvertFocusDateDisplay(u.DeliveryDtYH) AS DeliveryDt, ABS(i.Quantity) AS Quantity, ABS(i.Gross) AS Gross, i.Rate, ROUND(i.Rate / 90 * ABS(DATEDIFF(d, 
+dbo.ConvertFocusDate(x.ContractStartYH), dbo.ConvertFocusDate(u.DeliveryDtYH))), 2) AS diffamt
+FROM         dbo.data AS d LEFT OUTER JOIN
+dbo.u001b AS u ON d.ExtraHeaderOff = u.ExtraId LEFT OUTER JOIN
+dbo.u011b AS x ON d.ExtraOff = x.ExtraId LEFT OUTER JOIN
+dbo.indta AS i ON d.SalesOff = i.SalesId
+WHERE     (d.VoucherType = 3329) AND (u.InstTypeYH = 'Quarterly') AND (d.Date_ BETWEEN 25697 AND 25878) AND (i.Rate > 0)
+
+vw_RefrnDateWise
+
+SELECT     Code, RefId, Date_, DueDate, SUM(Amount) AS Amount
+FROM         dbo.Refrn
+WHERE     (Date_ > 0)
+GROUP BY Code, RefId, Date_, DueDate
+
+vw_StmtAcc
+
+SELECT     CAST(dbo.ConvertFocusDate(d.Date_) AS datetime) AS VDate, d.Date_ AS TDate, CASE p.DueDate WHEN 0 THEN 0 ELSE CAST(dbo.ConvertFocusDate(p.DueDate) 
+AS datetime) END AS DueDate, p.DueDate AS PDateInt, d.VoucherNo, d.VoucherType, d.BillWiseOff, p.Code, p.Ref, p.RefId, - 1 * CAST(p.Amount AS decimal(18, 4)) 
+AS Amt, m.MasterId, m.Name, m.Code2, u.ExtraId, u.Address1YH, u.Address2YH, u.Address3YH, u.TelYH
+FROM         dbo.vw_PendingRefDateWise AS p INNER JOIN
+dbo.data AS d ON p.RefId = d.BillWiseOff INNER JOIN
+dbo.mr000 AS m ON p.Code = m.MasterId LEFT OUTER JOIN
+dbo.u0000 AS u ON m.MasterId = u.ExtraId
+WHERE     (d.BillWiseOff <> 0)
+
+vw_StmtAccAging
+
+SELECT     cast(dbo.ConvertFocusDate(d .Date_) AS datetime) AS VDate, CASE p.DueDate WHEN 0 THEN 0 ELSE cast(dbo.ConvertFocusDate(p.DueDate) AS datetime) 
+END AS RefDueDate, d .VoucherNo, d .VoucherType, d .BillWiseOff, p.Code, p.RefId, (- 1) * cast(p.Amount AS decimal(18, 4)) AS Amt, m.MasterId, m.Name, 
+m.Code2
+FROM         data d INNER JOIN
+vw_PendingRefDateWise p ON d .BillWiseOff = p.RefId INNER JOIN
+mr000 m ON p.Code = m.MasterId
+WHERE     (d .BillWiseOff <> 0) AND d .vouchertype <> 5888
+UNION
+SELECT     AR.AdjDate, AR.DueAdjDate, AAD.Voucherno, 5888, AR.BillWiseOff, AAD.Code, AAD.RefId, cast(AAD.Adjust AS decimal(18, 4)) AS Amt, m.MasterId, m.Name, 
+m.Code2
+FROM         vw_AdjustAmtDW AAD INNER JOIN
+vw_AdjustRefs AR ON AAD.NewRef = AR.NewRef INNER JOIN
+mr000 m ON AAD.Code = m.MasterId
+WHERE     (AR.BillWiseOff <> 0) AND AR.DueAdjDateInt <= 26836
+
+vw_StmtPDC
+
+SELECT DISTINCT 
+d.Date_ AS TDate, CAST(dbo.ConvertFocusDate(d.Date_) AS datetime) AS VDate, CAST(dbo.ConvertFocusDate(d.DueDate) AS datetime) AS DataDueDate, 
+CASE p.DueDate WHEN 0 THEN 0 ELSE CAST(dbo.ConvertFocusDate(p.DueDate) AS datetime) END AS RefDueDate, p.DueDate AS PDueDateInt, d.VoucherNo, 
+d.Code AS CusCode, d.VoucherType, ISNULL(u1.ChequeNoYH, '') AS ChequeNo, ISNULL(u1.NarrationYH, '') AS Narration, ISNULL(u1.RemarksYH, '') AS Remarks, 
+d.Amount1
+FROM         dbo.Refrn AS p INNER JOIN
+dbo.data AS d ON p.RefId = d.BillWiseOff LEFT OUTER JOIN
+dbo.u0010 AS u1 ON d.ExtraHeaderOff = u1.ExtraId
+WHERE     (d.VoucherType = 5888) AND (d.BillWiseOff <> 0) AND (p.DueDate <= 26836)
+
+
+
+

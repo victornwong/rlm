@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<project name="elbd" basedir="." default="build">
+    <property name="web.dir" value="/var/lib/tomcat6/webapps/elbd/WEB-INF" />
+    <property name="src.dir" value="." />
+    <property name="build.dir" value="${web.dir}/classes" />
+    <property name="name" value="elbd"/>
+
+    <path id="master-classpath">
+        <fileset dir="${web.dir}/lib">
+            <include name="*.jar"/>
+        </fileset>
+        <pathelement path="${build.dir}"/>
+    </path>
+
+    <target name="build" description="Compile source java files">
+        <javac destdir="${build.dir}" includeantruntime="false" >
+            <src path="${src.dir}"/>
+            <classpath refid="master-classpath"/>
+        </javac>
+    </target>
+ 
+</project>
+

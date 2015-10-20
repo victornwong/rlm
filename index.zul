@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?page id="als_portal_login" ?>
+<?page title="UNIVERSAL"?>
+<?link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"?>
+<zk xmlns:h="http://www.w3.org/1999/xhtml" xmlns:zk="http://www.zkoss.org/2005/zk">
+
+<zscript src="rlm/rglobal/rglobal.zs" />
+<zscript>
+<![CDATA[
+MYTITLE = "UNIVERSAL";
+MYVERSION = "v0.05";
+/**
+ * <zscript src="rwglobal/rwglobaldefs.zs" />
+ * <zscript src="alsglobal/securityfuncs.zs" />
+ * 
+ * @author Victor Wong
+ * @since 18/06/2013
+ *
+ */
+import org.victor.*;
+Generals kiboo = new Generals(); SqlFuncs sqlhand = new SqlFuncs(); GuiFuncs guihand = new GuiFuncs();
+userAccessObj useraccessobj = new userAccessObj();
+sechand = new SecurityFuncs(useraccessobj);
+
+/*
+kio = Executions.getCurrent();
+remoadd = kio.getRemoteAddr().substring(0,6);
+if(remoadd.indexOf("172.18") != -1) Executions.sendRedirect("http://172.18.107.15:8080/");
+*/
+// not victor's IP, redirect to production-server
+/*
+kio = Executions.getCurrent();
+remoadd = kio.getRemoteAddr();
+if(remoadd.indexOf("198") == -1) Executions.sendRedirect("http://172.18.107.7:18080/");
+*/
+
+void loginToSystem(Component iwhat)
+{
+	itype = iwhat.getId();
+	tmp_username = kiboo.replaceSingleQuotes(tb_username.getValue());
+	tmp_password = kiboo.replaceSingleQuotes(tb_password.getValue());
+	todaydate = kiboo.getDateFromDatebox(hiddendatebox);
+	if(tmp_username.equals("") || tmp_password.equals("")) return;
+
+	enc_pwd = sechand.als_MD5_Encrypter(tmp_password);
+	if(!sechand.checkUserAccess(tmp_username,enc_pwd,tmp_password,useraccessobj)) // check security now.
+	{
+		// 3/11/2010: log invalid login
+		sqlhand.addAuditTrail("LOGIN","Unsuccessful-try login to the system (" + tmp_username + ")", useraccessobj.username, todaydate);
+		guihand.showMessageBox("Invalid login..");
+		return;
+	}
+
+	if(itype.equals("tablogin")) { guihand.showMessageBox("Working on it.. hang on"); return; }
+
+	//sqlhand.addAuditTrail("LOGIN","Successfully login to the system", useraccessobj.username, todaydate);
+
+	loginwin.setVisible(false);
+	sechand.setUserAccessObj(mainprogram, useraccessobj);
+
+	if(itype.equals("loginbutt")) mainprogram.setSrc("indexworker.zul");
+
+	// reset user access object, we only hide the login window,
+	// when it's visible again, everything should be cleared.
+	tb_username.setValue("");
+	tb_password.setValue("");
+
+} // end of loginToSystem()
+
+/*
+All codes written by Victor Wong otherwise stated else
+*/
+
+]]>
+</zscript>
+
+<style src="/real-world.css" />
+
+<style>
+	body
+	{
+		padding: 0 0;
+		background-color:#2e3436;
+		background: url('rwimg/vintage2w.jpg') no-repeat center center fixed ;
+		-webkit-background-size: cover;
+		-moz-background-size: cover;
+		-o-background-size: cover;
+		background-size: cover;
+	}
+
+	body:before
+	{
+		content: "";
+		position: fixed;
+		top: -10px;
+		left: 0;
+		width: 100%;
+		height: 10px;
+
+		-webkit-box-shadow: 0px 0px 10px rgba(0,0,0,.8);
+		-moz-box-shadow: 0px 0px 10px rgba(0,0,0,.8);
+		 box-shadow: 0px 0px 10px rgba(0,0,0,.8);
+
+		z-index: 100;
+	}
+
+	.wbo { font-weight:bold;color:#ffffff }
+</style>
+<!--
+background: url('rwimg/RW1.jpg') no-repeat center center fixed; position="center,center"
+-->
+
+<window id="loginwin" left="20px" top="20px" mode="overlapped" visible="true" >
+	<caption image="/rwimg/favicon.png" label="${MYTITLE}"/>
+	<vbox>
+	<datebox id="hiddendatebox" format="yyyy-MM-dd" visible="false" onCreate="self.value = new Date()" />
+	<grid>
+		<rows>
+			<row>
+				<hbox>
+					<separator width="290px" />
+					<label value="Username" />
+				</hbox>
+				<textbox id="tb_username" width="120px" />
+			</row>
+			<row>
+				<hbox>
+					<separator width="290px" />
+					<label value="Password" />
+				</hbox>
+				<textbox id="tb_password" type="password" width="120px" onOk="loginToSystem()" />	
+			</row>
+			<row>
+			<label multiline="true" style="font-size:9px" >
+			</label>
+				<hbox>
+					<button id="loginbutt" label="Login" onClick="loginToSystem(self)" />
+					<!-- <button id="tablogin" label="Tab login" onClick="loginToSystem(self)" /> -->
+				</hbox>
+			</row>
+		</rows>
+	</grid>
+	<div>
+		<h:center>
+			<label multiline="true" style="font-size:9px" >
+			&#169;2014,2015 Universe
+			</label>
+		</h:center>
+	</div>
+
+<zscript>
+<![CDATA[
+
+class pwd_tb_Listener implements org.zkoss.zk.ui.event.EventListener
+{	// onOK for tb_password
+	public void onEvent(Event event) throws UiException
+	{
+		loginToSystem(loginbutt);
+	}
+}
+tb_password.addEventListener("onOK",new pwd_tb_Listener());
+
+]]>
+</zscript>
+
+	</vbox>
+</window>
+
+<div>
+<include id="mainprogram" />
+</div>
+
+</zk>

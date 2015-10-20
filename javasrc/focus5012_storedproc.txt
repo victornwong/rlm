@@ -1,0 +1,169 @@
+FOCUS5012 stored procedures
+
+functions.scalar-valued functions
+dbo.qtyByItemType
+
+USE [Focus5012]
+GO
+/****** Object:  UserDefinedFunction [dbo].[qtyByItemType]    Script Date: 06/18/2015 12:10:19 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/*
+create procedure getAssetType(@romasterid int) as
+begin
+SELECT top 1 u1.ItemTypeYH
+FROM mr001 AS m1 INNER JOIN
+dbo.u0001 AS u1 ON m1.Eoff = u1.ExtraId INNER JOIN
+dbo.mr008 AS p1 ON u1.ProductNameYH = p1.MasterId
+where p1.masterid = @romasterid
+end
+drop procedure getAssetType
+*/
+/*
+drop procedure sumgrossNB
+create procedure sumgrossNB @vcno varchar(50)
+as
+begin
+select sum(iy1.gross)
+from data d1
+left join mr008 ro1 on ro1.masterid = d1.tags6
+left join indta iy1 on iy1.salesid = d1.salesoff
+where d1.voucherno=@vcno
+and
+(SELECT top 1 u1.ItemTypeYH
+FROM mr001 AS m1 INNER JOIN
+dbo.u0001 AS u1 ON m1.Eoff = u1.ExtraId INNER JOIN
+dbo.mr008 AS p1 ON u1.ProductNameYH = p1.MasterId
+where p1.masterid = ro1.masterid
+) = 'NB'
+end
+*/
+/*
+select sum(iy1.gross)
+from data d1
+left join mr008 ro1 on ro1.masterid = d1.tags6
+left join indta iy1 on iy1.salesid = d1.salesoff
+where d1.voucherno='RW10518'
+and
+(SELECT top 1 u1.ItemTypeYH
+FROM mr001 AS m1 INNER JOIN
+dbo.u0001 AS u1 ON m1.Eoff = u1.ExtraId INNER JOIN
+dbo.mr008 AS p1 ON u1.ProductNameYH = p1.MasterId
+where p1.masterid = ro1.masterid
+) = 'NB'
+*/
+
+/*
+DECLARE @total_sales_business int
+EXEC sales_for_type business, @total_sales=@total_sales_business OUTPUT
+*/
+/*
+declare @wolly float;
+exec sumgrossNB 'RW10518'
+print @wolly;
+*/
+
+/*
+[dbo].[GetQtyBalance]
+(@ProductCode integer,@V_Date integer) 	returns float(53) as
+begin
+declare @value float(53)
+select @value=sum(Qrec+Qiss) from ibals with (ReadUnCommitted)
+where ibals.Code=@ProductCode and (ibals.Date_<=@V_Date )
+return @value
+end
+*/
+
+/*
+create function grossByItemType(@vcno as varchar(50), @itype as varchar(20)) returns float(53) as
+begin
+declare @retv float(53)
+select @retv = sum(iy1.gross)
+from data d1
+left join mr008 ro1 on ro1.masterid = d1.tags6
+left join indta iy1 on iy1.salesid = d1.salesoff
+where d1.voucherno=@vcno
+and
+(SELECT top 1 u1.ItemTypeYH
+FROM mr001 AS m1 INNER JOIN
+dbo.u0001 AS u1 ON m1.Eoff = u1.ExtraId INNER JOIN
+dbo.mr008 AS p1 ON u1.ProductNameYH = p1.MasterId
+where p1.masterid = ro1.masterid
+) = @itype
+return @retv
+end
+*/
+
+/*
+select dbo.grossByItemType('RW10518','NB')
+*/
+
+ALTER function [dbo].[qtyByItemType](@vcno as varchar(50), @itype as varchar(20)) returns float(53) as
+begin
+declare @retv float(53)
+select @retv = sum(iy1.input0)
+from data d1
+left join mr008 ro1 on ro1.masterid = d1.tags6
+left join indta iy1 on iy1.salesid = d1.salesoff
+where d1.voucherno=@vcno
+and
+(SELECT top 1 u1.ItemTypeYH
+FROM mr001 AS m1 INNER JOIN
+dbo.u0001 AS u1 ON m1.Eoff = u1.ExtraId INNER JOIN
+dbo.mr008 AS p1 ON u1.ProductNameYH = p1.MasterId
+where p1.masterid = ro1.masterid
+) = @itype
+return @retv
+end
+
+-------------
+
+functions.scalar-valued functions
+dbo.ufn_FindCustRoot
+
+USE [Focus5012]
+GO
+/****** Object:  UserDefinedFunction [dbo].[ufn_FindCustRoot]    Script Date: 06/18/2015 12:11:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER FUNCTION [dbo].[ufn_FindCustRoot] ( @id int ) RETURNS int AS 
+BEGIN
+DECLARE @parentID int
+SELECT @parentID = l2 From mr000 WHERE masterid = @id
+WHILE @parentID <> -1
+BEGIN
+SELECT @id = @parentID
+SELECT @parentID = l2 From mr000 WHERE masterid = @id
+End
+RETURN @id
+End
+
+-------------
+
+functions.scalar-valued functions
+dbo.ufn_getCustName
+
+USE [Focus5012]
+GO
+/****** Object:  UserDefinedFunction [dbo].[ufn_getCustName]    Script Date: 06/18/2015 12:11:30 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER FUNCTION [dbo].[ufn_getCustName] ( @id int ) RETURNS varchar(250) AS  
+BEGIN
+DECLARE @CNm varchar(250)
+SELECT @CNm = Name From mr000 WHERE masterid = @id
+RETURN @CNm
+End
+
+--------------
+
+
+
+
+

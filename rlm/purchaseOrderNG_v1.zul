@@ -1,0 +1,665 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?page id="pothingng"?>
+<zk>
+<zscript src="rglobal/rglobal.zs" />
+<zscript src="rglobal/formMaker_v1.zs" />
+<zscript src="rglobal/rlmsql.zs" />
+<zscript src="rglobal/supplierfunc.zs" />
+<zscript src="stockManf/stocklister.zs" />
+<zscript src="stockManf/polister.zs" />
+<zscript>
+<![CDATA[
+MYTITLE = "Purchase Requisition and Order";
+MYVERSION = "v0.1";
+MYPANEL = "pomangerpanel";
+/**
+ * @title Purchase requisition and order things - next-gen
+ * @author Victor Wong
+ * @since 09/09/2015
+ * @notes
+*/
+import java.util.*;
+import java.text.*;
+import java.io.*;
+import java.sql.*;
+import java.sql.Date;
+import java.lang.Float;
+import groovy.sql.Sql;
+import org.zkoss.zk.ui.*;
+import org.zkoss.zk.zutl.*;
+import java.math.BigDecimal;
+import java.awt.Color;
+import org.zkoss.util.media.AMedia;
+import org.zkoss.zul.*;
+import org.apache.poi.hssf.usermodel.*;
+import org.apache.poi.hssf.util.*;
+import org.apache.poi.ss.util.*;
+import org.victor.*;
+sechand = new SecurityFuncs();
+myincludeid = Executions.getCurrent().getParameter("myid");
+
+try {
+useraccessobj = sechand.getUserAccessObject();
+//if(useraccessobj == null) Executions.sendRedirect(MAINLOGIN_PAGE);
+} catch (Exception e) {}
+
+kiboo = new Generals(); sqlhand = new SqlFuncs(); lbhand = new ListboxHandler();
+guihand = new GuiFuncs(); luhand = new LookupFuncs(); dmshand = new DMSFuncs();
+gridhand = new GridHandler(); ngfun = new NGfuncs(); rwsqlfun = new RWMS_sql();
+
+SUPP_FORM_STYLE = "background:#1D7FDA";
+
+LIMIT_SUPPLIERS_LOADING = " limit 100"; // used in supplierfunc.zs
+ISACTIVE_SUPPLIER_LOADING = ""; // set this in other modu to get active supplier only: and IsActive=1
+
+glob_sel_supplierid = glob_sel_apcode ="";
+
+String[] pometafields = { "APCode","supplier_name","sup_address","sup_tel","sup_fax","sup_email","sup_contact","curcode" };
+glob_sel_poitem_obj = null;
+
+/**
+ * call-back from ldsupplierclik() and loadsupplirdclick() event handler - loadSupplier()
+ * @param isel [description]
+ */
+void loadSupplier_callback(Object isel)
+{
+	loadsupplier_pop.close();
+	glob_sel_supplierid = lbhand.getListcellItemLabel(isel,0);
+	glob_sel_apcode = lbhand.getListcellItemLabel(isel,1);
+
+	r = getSupplierRec(glob_sel_supplierid);
+	if(r != null)
+	{
+		String[] fl = { "APCode","SupplierName","Phone","Fax","Email","CPerson1","CurCode" };
+		ngfun.populateUI_Data(supplierinputs,fl,r);
+
+		supadr = kiboo.checkNullString(r.get("Supadd1")) + "\n" + kiboo.checkNullString(r.get("Supadd2")) + "\n" + kiboo.checkNullString(r.get("SupAdd3"));
+		p_sup_address_tb.setValue(supadr);
+	}
+}
+
+/**
+ * Call-back from stock-master listbox clicker - call from stocklister.stkitemdoubelclik() and stocklister.stkitemclik()
+ * @param itarget the selected listitem object
+ */
+void stockItemListbox_callback(Object itarget)
+{
+	liststkmaster_pop.close();
+	polb = poitems_holder.getFellowIfAny("poitems_lb");
+	if( polb == null) return;
+
+	glob_sel_stock_code = lbhand.getListcellItemLabel(itarget,0);
+	glob_sel_description = lbhand.getListcellItemLabel(itarget,1);
+	glob_sel_id = lbhand.getListcellItemLabel(itarget,ITM_ID);
+
+	isel = polb.getSelectedItem();
+
+	lbhand.setListcellItemLabel(isel,1, glob_sel_id );
+	lbhand.setListcellItemLabel(isel,2, glob_sel_stock_code );
+	lbhand.setListcellItemLabel(isel,3, glob_sel_description );
+}
+
+void PO_clickCallbak()
+{
+	showPOThings(glob_sel_po);
+	workarea.setVisible(true);
+}
+
+void togPObutts(boolean iwhat)
+{
+	Component[] tbutts = { selsupplier_b, updpometa_b, newpoitem_b, savepoitem_b, rempoitem_b, selmasterstock_b, updpoitem_b, chkdupitems_b };
+	for(i=0; i<tbutts.length; i++)
+	{
+		try { tbutts[i].setDisabled(iwhat); } catch (UiException e) {}
+	}
+}
+
+/**
+ * [deletePO description]
+ * @param ipo [description]
+ */
+void deletePO(String ipo)
+{
+	sqlstm = "delete from PurchaseReq_Items where pr_parent_id=" + ipo; // delete all 'em PO items
+	sqlhand.rws_gpSqlExecuter(sqlstm);
+	sqlstm = "delete from PurchaseRequisition where origid=" + ipo; // delete main PO
+	sqlhand.rws_gpSqlExecuter(sqlstm);
+	listPO(last_show_po);
+}
+
+/**
+ * PO funcs dispenser
+ * @param iwhat button-ID
+ */
+void poFunc(String iwhat)
+{
+	adminpop.close();
+	todaydate =  kiboo.todayISODateTimeString();
+	msgtext = sqlstm = sts = "";
+	unm = "tester";
+	try { unm = useraccessobj.username; } catch (Exception e) {}
+
+	if(iwhat.equals("newpo_b")) // insert new PO
+	{
+		sqlstm = "insert into PurchaseRequisition (supplier_name,datecreated,pr_status,curcode,username) values ('UNKNOWN SUPPLIER','" + todaydate + "','DRAFT','MYR','" + unm + "');";
+	}
+	else
+	{
+		if(glob_sel_po.equals("")) return;
+
+		if(iwhat.equals("updpometa_b")) // update PO metadata
+		{
+			dt = ngfun.getString_fromUI(pometaboxes);
+			sqlstm = "update PurchaseRequisition set APCode='" + dt[0] + "',supplier_name='" + dt[1] + "',sup_address='" + dt[2] + "'," +
+			"sup_tel='" + dt[3] + "',sup_fax='" + dt[4] + "',sup_email='" + dt[5] + "',sup_contact='" + dt[6] + "',curcode='" + dt[7] + "' " +
+			"where origid=" + glob_sel_po;
+		}
+
+		if(iwhat.equals("delpo_b")) // delete PO
+		{
+			if(Messagebox.show("This will hard-delete the PO..", "Are you sure?",
+				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+			deletePO(glob_sel_po);
+		}
+
+		if(iwhat.equals("setdraftpo_b")) // set PO to draft - admin
+		{
+			sqlstm = "update PurchaseRequisition set pr_status='DRAFT' where origid=" + glob_sel_po;
+			glob_sel_po_status = "DRAFT";
+		}
+
+		if(iwhat.equals("commitpo_b")) // commit PO, disable some butts
+		{
+			if(Messagebox.show("Once committed, no changes are allowed", "Are you sure?",
+				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+			sqlstm = "update PurchaseRequisition set pr_status='COMMIT' where origid=" + glob_sel_po;
+			togPObutts(true);
+			glob_sel_po_status = "COMMIT";
+			// TODO send notif email
+		}
+
+		if(iwhat.equals("settoday_b")) // set PO to today's date
+		{
+			sqlstm = "update PurchaseRequisition set datecreated='" + todaydate + "' where origid=" + glob_sel_po;
+		}
+
+		if(iwhat.equals("suspendpo_b")) // suspend the PO
+		{
+			if(Messagebox.show("Suspending this PO will require authorized person to unlock it later", "Are you sure?",
+				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+			sqlstm = "update PurchaseRequisition set pr_status='SUSPEND' where origid=" + glob_sel_po;
+			togPObutts(true);
+			glob_sel_po_status = "SUSPEND";
+		}
+
+		if(iwhat.equals("apprpo_b")) // approve the PO - needed to print-out the PO
+		{
+			if(Messagebox.show("Please ensure everything is in order before approving this PO", "Are you sure?",
+				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+			sqlstm = "update PurchaseRequisition set pr_status='APPROVE' where origid=" + glob_sel_po;
+			togPObutts(true);
+			glob_sel_po_status = "APPROVE";
+		}
+
+		if(iwhat.equals("printpo_b")) // print PO via BIRT - need to check only APPROVE PO can print
+		{
+			if(glob_sel_po_status.equals("APPROVE"))
+			{
+				msgtext = "PO template will be processed - later";
+			}
+			else
+			{
+				msgtext = "ERR: only PO which is APPROVED can be printed";
+			}
+		}
+	}
+
+	if(!sqlstm.equals(""))
+	{
+		sqlhand.rws_gpSqlExecuter(sqlstm);
+		listPO(last_show_po);
+	}
+	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
+}
+
+/**
+ * POitems_callback activated by poitemdclik listbox event handler
+ * @param isel the selected list-item
+ */
+void POitems_callback(Object isel)
+{
+	glob_sel_poitem_obj = isel;
+	pi_extranotes_tb.setValue( lbhand.getListcellItemLabel(isel,POITEMS_EXTRANOTE) );
+	pi_qty_tb.setValue( lbhand.getListcellItemLabel(isel,POITEMS_QTY) );
+	pi_unitprice_tb.setValue( lbhand.getListcellItemLabel(isel,POITEMS_UPRICE) );
+	editpoitem_pop.open(isel);
+}
+
+Object[] poitemshds =
+{
+	new listboxHeaderWidthObj("No.",true,"55px"),
+	new listboxHeaderWidthObj("stockcode",false,""),
+	new listboxHeaderWidthObj("Stock name",true,"150px"),
+	new listboxHeaderWidthObj("Description",true,""),
+	new listboxHeaderWidthObj("Qty",true,"50px"),
+	new listboxHeaderWidthObj("U/Price",true,"70px"),
+	new listboxHeaderWidthObj("SubTotal",true,"70px"),
+};
+POITEMS_STOCKCODE = 1;
+POITEMS_STOCKNAME = 2;
+POITEMS_EXTRANOTE = 3;
+POITEMS_QTY = 4;
+POITEMS_UPRICE = 5;
+POITEMS_SUBTOTAL = 6;
+
+class poitemdclik implements org.zkoss.zk.ui.event.EventListener
+{
+	public void onEvent(Event event) throws UiException
+	{
+		isel = event.getTarget();
+		try
+		{
+			POitems_callback(isel);
+		} catch (Exception e) {}
+	}
+}
+poitems_dclick = new poitemdclik();
+
+/**
+ * More flexible to show PO items
+ * @param ipo     the selected PO
+ * @param iholder DIV holder
+ * @param ilbid   listbox ID
+ */
+Listbox showPOitems(String ipo, Div iholder, String ilbid)
+{
+	Listbox newlb = lbhand.makeVWListbox_Width(iholder, poitemshds, ilbid, 10);
+	newlb.setMultiple(true); newlb.setCheckmark(true);
+	pograndtotal_lbl.setValue(""); // always clear previous grand-total if any
+
+	sqlstm = "select m.description,m.unitprice,m.quantity,m.stock_code," +
+	"(select stock_code from StockMasterDetails where ID=m.stock_code) as stockname from PurchaseReq_Items m where m.pr_parent_id=" + ipo;
+	r = sqlhand.rws_gpSqlGetRows(sqlstm);
+	if(r.size() > 0)
+	{
+		String[] fl = { "stock_code","stockname","description","quantity","unitprice" };
+		ArrayList kabom = new ArrayList();
+		for(d : r)
+		{
+			kabom.add("0");
+			ngfun.popuListitems_Data(kabom,fl,d);
+			kabom.add("0"); // subtotal
+			lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
+			kabom.clear();
+		}
+
+		recalcSubtotal(newlb,POITEMS_QTY,POITEMS_UPRICE,POITEMS_SUBTOTAL);
+		renumberListbox(newlb, 0, 1, true);
+		lbhand.setDoubleClick_ListItems(newlb, poitems_dclick);
+	}
+	return newlb;
+}
+
+/**
+ * show PO metadata and order items
+ * @param ipo selected PO(origid) no.
+ */
+void showPOThings(String ipo)
+{
+	por = getPurchaseReqRec(ipo);
+	if(por == null)
+	{
+		guihand.showMessageBox("ERR: cannot load purchase-order record from database..");
+		return;
+	}
+
+	ngfun.populateUI_Data(pometaboxes,pometafields,por);
+
+	p_origid_tb.setValue(PO_PREFIX + por.get("origid").toString());
+	togPObutts( (por.get("pr_status").equals("DRAFT")) ? false : true);
+	newlb = showPOitems(ipo,poitems_holder,"poitems_lb");
+	gp_calcPOTotal(newlb,POITEMS_SUBTOTAL,pograndtotal_lbl,"Grand total: ");
+}
+
+void poItemsFunc(String iwhat)
+{
+	polb = poitems_holder.getFellowIfAny("poitems_lb");
+	if( polb == null) return;
+	editpoitem_pop.close();
+	todaydate =  kiboo.todayISODateTimeString();
+	msgtext = sqlstm = sts = "";
+	reorder = false;
+
+	if(iwhat.equals("newpoitem_b")) // add empty PO item
+	{
+		ArrayList kabom = new ArrayList();
+		String[] emptypoitem = { "0", "0", "NONE", "NONE", "0", "0","0" };
+		for(i=0;i<emptypoitem.length;i++)
+		{
+			kabom.add(emptypoitem[i]);
+		}
+		lbhand.insertListItems(polb,kiboo.convertArrayListToStringArray(kabom),"false","");
+		reorder = true;
+	}
+
+	if(iwhat.equals("rempoitem_b")) // remove PO ticked items
+	{
+		jk = polb.getSelectedItems().toArray();
+		for(i=0;i<jk.length;i++)
+		{
+			jk[i].setParent(null);
+		}
+		reorder = true;
+	}
+
+	if(iwhat.equals("updpoitem_b")) // update PO item details - call from popup
+	{
+		if(glob_sel_poitem_obj == null) return;
+
+		lbhand.setListcellItemLabel(glob_sel_poitem_obj,POITEMS_EXTRANOTE, pi_extranotes_tb.getValue());
+		lbhand.setListcellItemLabel(glob_sel_poitem_obj,POITEMS_QTY, pi_qty_tb.getValue());
+		lbhand.setListcellItemLabel(glob_sel_poitem_obj,POITEMS_UPRICE, pi_unitprice_tb.getValue());
+
+		recalcSubtotal(glob_sel_poitem_obj,POITEMS_QTY,POITEMS_UPRICE,POITEMS_SUBTOTAL);
+		gp_calcPOTotal(polb,POITEMS_SUBTOTAL,pograndtotal_lbl,"Grand total: ");
+	}
+
+	if(iwhat.equals("savepoitem_b"))
+	{
+		savePOitems(glob_sel_po,polb);
+		msgtext = "OK: items saved..";
+	}
+
+	if(iwhat.equals("chkdupitems_b")) // check dups PO items - abit of utility func
+	{
+		checkListItemsDups(polb,POITEMS_STOCKNAME,"background:#dd3311");
+	}
+
+	if(reorder)
+	{
+		renumberListbox(polb, 0, 1, true);
+		lbhand.setDoubleClick_ListItems(polb, poitems_dclick);
+	}
+
+	if(!sqlstm.equals(""))
+	{
+		sqlhand.rws_gpSqlExecuter(sqlstm);
+	}
+	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
+}
+
+void savePOitems(String ipo, Listbox ipilb)
+{
+	if(ipilb.getItemCount() == 0) return;
+	ts = ipilb.getItems().toArray();
+
+	sqlstm = "delete from PurchaseReq_Items where pr_parent_id=" + ipo;
+	sqlhand.rws_gpSqlExecuter(sqlstm); // delete existing PO items
+
+	Sql sql = wms_Sql();
+	Connection thecon = sql.getConnection();
+	for(i=0;i<ts.length;i++)
+	{
+		PreparedStatement pstmt = thecon.prepareStatement(
+			"insert into PurchaseReq_Items (pr_parent_id,description,unitprice,quantity,stock_code) " +
+			"values (?,?,?,?,?);");
+
+		pstmt.setInt(1,Integer.parseInt(ipo));
+		pstmt.setString(2, lbhand.getListcellItemLabel(ts[i],POITEMS_EXTRANOTE) );
+		pstmt.setFloat(3, Float.parseFloat( lbhand.getListcellItemLabel(ts[i],POITEMS_UPRICE) ) );
+		pstmt.setInt(4,Integer.parseInt( lbhand.getListcellItemLabel(ts[i],POITEMS_QTY) ));
+		pstmt.setInt(5,Integer.parseInt( lbhand.getListcellItemLabel(ts[i],POITEMS_STOCKCODE) ));
+		pstmt.executeUpdate();
+	}
+	sql.close();
+}
+
+]]>
+</zscript>
+
+<popup id="listpopop">
+	<div sclass="shadowbox" style="${LISTPOBACKGROUND}">
+		<grid sclass="GridLayoutNoBorder">
+		<rows>
+			<row style="${LISTPOBACKGROUND}">
+				<label value="Start" sclass="wbo" />
+				<datebox id="startdate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+				<label value="End" sclass="wbo" />
+				<datebox id="enddate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+			</row>
+			<row style="${LISTPOBACKGROUND}" spans="3,1">
+				<textbox id="searhtxt_tb" sclass="k9" width="99%" />
+				<button label="Load/Find" sclass="k9mo" onClick="listpopop.close();listPO(1)" />
+			</row>
+			<row style="${LISTPOBACKGROUND}" spans="3,1">
+				<textbox id="byponum_tb" sclass="k9" width="50%" />
+				<button label="by PO number" sclass="k9mo" onClick="listpopop.close();listPO(2)" />
+			</row>
+		</rows>
+	</grid>
+
+	</div>
+</popup>
+
+<popup id="loadsupplier_pop">
+	<div sclass="shadowbox" style="background:#4182C0" width="400px">
+		<hbox>
+			<label value="Search" sclass="wbo" />
+			<textbox id="ldsupsearch_tb" sclass="k9" />
+			<button label="Find" sclass="k9mo" onClick="loadSupplier(ldsupsearch_tb.getValue(),loadsupplier_holder)" />
+		</hbox>
+		<separator height="3px" />
+		<div id="loadsupplier_holder" />
+	</div>
+</popup>
+
+<popup id="liststkmaster_pop">
+	<div sclass="shadowbox" style="${NEWSTOCKITEM_BACKGROUND}" width="800px" >
+		<hbox>
+			<listbox id="m_stock_cat_lb" sclass="k9" mold="select" />
+			<button label="by category" sclass="k9mo" onClick="listStockItems(1)" />
+			<listbox id="m_groupcode_lb" sclass="k9" mold="select" />
+			<button label="by group" sclass="k9mo" onClick="listStockItems(2)" />
+			<listbox id="m_classcode_lb" sclass="k9" mold="select" />
+			<button label="by class" sclass="k9mo" onClick="listStockItems(3)" />
+			<textbox id="m_searchtext_tb" sclass="k9" />
+			<button label="Load/Search" sclass="k9mo" onClick="listStockItems(4)" />
+		</hbox>
+		<div id="stockitems_holder" />
+	</div>
+</popup>
+
+<popup id="editstockitem_pop">
+	<div sclass="shadowbox" style="${NEWSTOCKITEM_BACKGROUND}" width="400px" visible="false">
+		<grid sclass="GridLayoutNoBorder">
+			<rows>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<separator />
+					<label value="Edit stock-item" style="color:#ffffff;font-weight:bold;text-shadow: 1px 1px #333333;" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Category" sclass="k9b" />
+					<combobox id="e_stock_cat_cb" sclass="k9" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Group" sclass="k9b" />
+					<combobox id="e_groupcode_cb" sclass="k9" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Class" sclass="k9b" />
+					<combobox id="e_classcode_cb" sclass="k9" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Stock-code" sclass="k9b" />
+					<textbox id="e_stock_code_tb" sclass="k9" width="99%" disabled="true" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Description" sclass="k9b" />
+					<textbox id="e_description_tb" sclass="k9" width="99%" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<separator />
+					<hbox>
+						<button id="updateitem_b" label="Update" sclass="k9mo" onClick="editstockitem_pop.close(); itemFunc(self.getId())" />
+						<button label="Close" sclass="k9mo" onClick="editstockitem_pop.close()" />
+					</hbox>
+				</row>
+			</rows>
+		</grid>
+		<separator height="3px" />
+	</div>
+</popup>
+
+<popup id="editpoitem_pop">
+	<div sclass="shadowbox" style="${SUPP_FORM_STYLE}" >
+		<grid sclass="GridLayoutNoBorder" width="500px">
+			<rows>
+				<row style="${SUPP_FORM_STYLE}">
+					<label value="Description" sclass="k9b" />
+					<textbox id="pi_extranotes_tb" width="97%" height="50px" multiline="true" sclass="k9" />
+				</row>
+				<row style="${SUPP_FORM_STYLE}">
+					<label value="Quantity" sclass="k9b" />
+					<textbox id="pi_qty_tb" width="70px" />
+				</row>
+				<row style="${SUPP_FORM_STYLE}">
+					<label value="Unit price" sclass="k9b" />
+					<textbox id="pi_unitprice_tb" width="70px" />
+				</row>
+			</rows>
+		</grid>
+		<separator height="2px" />
+		<button id="updpoitem_b" label="Update" sclass="k9mo" onClick="poItemsFunc(self.getId())" />
+	</div>
+</popup>
+
+<popup id="adminpop">
+	<div sclass="shadowbox" style="background:#CE1313">
+		<vbox>
+		<button id="setdraftpo_b" label="Set draft" onClick="poFunc(self.getId())" />
+		<button id="settoday_b" label="Set today" onClick="poFunc(self.getId())" />
+			<button id="delpo_b" label="DELETE" onClick="poFunc(self.getId())" />
+		</vbox>
+	</div>
+</popup>
+
+<style src="/real-world.css" />
+<style>
+	.GridLayoutNoBorder tr.z-row td.z-row-inner, tr.z-row .z-cell, div.z-grid
+	{
+		border: none; overflow: hidden; zoom: 1;
+		border-top: none; border-left: none; border-right: none; border-bottom: none;
+	}
+	.wbo { font-size:9px;color:#ffffff;font-weight:bold }
+</style>
+
+<div width="${PANEL_WIDTH}" style="opacity: 0.8;" >
+<panel id="${MYPANEL}" title="${MYTITLE} ${MYVERSION}" border="none" collapsible="true" closable="true" >
+<panelchildren style="background:#0C203E">
+
+	<div sclass="shadowbox" style="background:#6991B8">
+		<hbox>
+			<button label="List" sclass="k9mo" onClick="listpopop.open(self)" />
+			<button id="newpo_b" label="New PO" sclass="k9mo" onClick="poFunc(self.getId())" />
+			<button id="commitpo_b" label="Commit" sclass="k9mo" onClick="poFunc(self.getId())" />
+			<button id="suspendpo_b" label="Suspend" sclass="k9mo" onClick="poFunc(self.getId())" />
+			<button id="apprpo_b" label="APPROVE" sclass="k9mo" onClick="poFunc(self.getId())" />
+			<button id="printpo_b" label="Print" sclass="k9mo" onClick="poFunc(self.getId())" />
+			<separator width="10px" />
+			<button label="ADMIN" sclass="k9mo" style="color:#D11111" onClick="adminpop.open(self)" />
+		</hbox>
+		<separator height="3px" />
+		<div id="poholder" />
+	</div>
+
+	<div id="workarea" visible="false">
+		<hbox>
+			<div id="metaarea" sclass="shadowbox" style="background:#8B0103">
+				<hbox>
+					<button id="selsupplier_b" label="Select supplier" sclass="k9mo" onClick="loadsupplier_pop.open(self)" />
+					<button id="updpometa_b" label="Update metadata" sclass="k9mo" onClick="poFunc(self.getId())" />
+				</hbox>
+				<separator height="3px" />
+				<grid sclass="GridLayoutNoBorder" width="350px">
+					<rows>
+						<row style="${SUPP_FORM_STYLE}">
+							<label id="p_origid_tb" sclass="subhead1" />
+							<separator />
+						</row>
+						<row style="${SUPP_FORM_STYLE}">
+							<label value="Supplier code" sclass="wbo" />
+							<label id="p_apcode_tb" sclass="wbo" />
+						</row>
+						<row style="${SUPP_FORM_STYLE}">
+							<label value="Supplier name" sclass="wbo" />
+							<label id="p_supplier_name_tb" style="font-weight:bold;color:#ffffff" width="97%" />
+						</row>
+						<row style="${SUPP_FORM_STYLE}">
+							<label value="Address" sclass="wbo" />
+							<textbox id="p_sup_address_tb" style="font-size:9px" width="97%" height="70px" multiline="true" />
+						</row>
+						<row style="${SUPP_FORM_STYLE}">
+							<label value="Phone" sclass="wbo" />
+							<textbox id="p_phone_tb" sclass="k9" width="80%" />
+						</row>
+						<row style="${SUPP_FORM_STYLE}">
+							<label value="Fax" sclass="wbo" />
+							<textbox id="p_fax_tb" sclass="k9" width="80%" />
+						</row>
+						<row style="${SUPP_FORM_STYLE}">
+							<label value="Email" sclass="wbo" />
+							<textbox id="p_email_tb" sclass="k9" width="97%" />
+						</row>
+						<row style="${SUPP_FORM_STYLE}">
+							<label value="Contact1" sclass="wbo" />
+							<textbox id="p_cperson1_tb" sclass="k9" width="97%" />
+						</row>
+						<row style="${SUPP_FORM_STYLE}">
+							<label value="Currency" sclass="wbo" />
+							<textbox id="p_curcode_tb" sclass="k9" width="70%" />
+						</row>
+					</rows>
+				</grid>
+			</div>
+
+			<div sclass="shadowbox" style="background:#8B0103" >
+				<hbox>
+					<button id="newpoitem_b" label="New item" sclass="k9mo" onClick="poItemsFunc(self.getId())" />
+					<button id="selmasterstock_b" label="Select stock name" sclass="k9mo" onClick="liststkmaster_pop.open(self)" />
+					<button id="chkdupitems_b" label="Check dups" sclass="k9mo" onClick="poItemsFunc(self.getId())" />
+					<button id="savepoitem_b" label="SAVE" sclass="k9mo" onClick="poItemsFunc(self.getId())" />
+					<separator width="5px" />
+					<button id="rempoitem_b" label="Remove" sclass="k9mo" style="color:#ee1100" onClick="poItemsFunc(self.getId())" />
+				</hbox>
+				<separator height="3px" />
+				<div id="poitems_holder" />
+				<separator height="3px" />
+				<div style="text-align:right;padding-right:10px">
+					<label id="pograndtotal_lbl" sclass="subhead1" />
+				</div>
+			</div>
+		</hbox>
+	</div>
+	<separator height="3px" />
+
+<zscript>
+<![CDATA[
+
+Object[] supplierinputs = { p_apcode_tb, p_supplier_name_tb, p_phone_tb, p_fax_tb, p_email_tb, p_cperson1_tb, p_curcode_tb };
+
+Object[] pometaboxes = { p_apcode_tb, p_supplier_name_tb, p_sup_address_tb, p_phone_tb, p_fax_tb, p_email_tb,
+	p_cperson1_tb, p_curcode_tb };
+
+fillStockMasterSelectorDropdowns(); // stocklister.zs
+
+]]>
+</zscript>
+</panelchildren>
+</panel>
+</div>
+</zk>
+
