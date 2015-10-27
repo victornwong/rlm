@@ -3,6 +3,11 @@
  * Written by Victor Wong
  */
 
+String WO_Linkcode(String iprefix, String iwhat)
+{
+	return iprefix + " " + iwhat;
+}
+
 String getSTKOUT_byWorkOrder(String iwo)
 {
 	String retval = "";
@@ -101,12 +106,15 @@ Object[] wohds2 = // for other modu - show min WO details just for picking
 	new listboxHeaderWidthObj("W.Type",true,"80px"),
 	new listboxHeaderWidthObj("Serial",false,"80px"), // 5
 	new listboxHeaderWidthObj("Model",false,"80px"),
-	new listboxHeaderWidthObj("Warranty",false,"80px"),
+	new listboxHeaderWidthObj("Wrty",false,"80px"),
 	new listboxHeaderWidthObj("Status",false,"70px"),
-	new listboxHeaderWidthObj("Stage",false,"70px"),
-	new listboxHeaderWidthObj("arcode",false,""), // 10
+	new listboxHeaderWidthObj("arcode",false,""), // 9
 	new listboxHeaderWidthObj("Priority",false,"70px"),
 	new listboxHeaderWidthObj("User",false,"70px"),
+	new listboxHeaderWidthObj("Tech",false,"70px"),
+	new listboxHeaderWidthObj("WO.Stage",false,"70px"),
+	new listboxHeaderWidthObj("WO.Start",false,"70px"),
+	new listboxHeaderWidthObj("WH.Stage",false,"70px"), // 15
 };
 
 Object[] wohds1 =
@@ -116,16 +124,17 @@ Object[] wohds1 =
 	new listboxHeaderWidthObj("Customer",true,""),
 	new listboxHeaderWidthObj("Contact",true,""),
 	new listboxHeaderWidthObj("W.Type",true,"80px"),
-	new listboxHeaderWidthObj("Serial",true,"80px"), // 5
-	new listboxHeaderWidthObj("Model",true,"80px"),
-	new listboxHeaderWidthObj("Warranty",false,"80px"),
+	new listboxHeaderWidthObj("Serial",false,"80px"), // 5
+	new listboxHeaderWidthObj("Model",false,"80px"),
+	new listboxHeaderWidthObj("Wrty",true,"50px"),
 	new listboxHeaderWidthObj("Status",true,"70px"),
-	new listboxHeaderWidthObj("Stage",true,"70px"),
-	new listboxHeaderWidthObj("arcode",false,""), // 10
+	new listboxHeaderWidthObj("arcode",false,""), // 9
 	new listboxHeaderWidthObj("Priority",true,"70px"),
 	new listboxHeaderWidthObj("User",true,"70px"),
 	new listboxHeaderWidthObj("Tech",true,"70px"),
-	new listboxHeaderWidthObj("Pickup",true,"70px"),
+	new listboxHeaderWidthObj("WO.Stage",true,"70px"),
+	new listboxHeaderWidthObj("WO.Start",true,"70px"),
+	new listboxHeaderWidthObj("WH.Stage",true,"70px"), // 15
 };
 WO_ORIGID_POS = 0;
 WO_CUSTOMER_POS = 2;
@@ -133,12 +142,13 @@ WO_WORKTYPE_POS = 4;
 WO_SERIALNO_POS = 5;
 WO_MODEL_POS = 6;
 WO_STATUS_POS = 8;
-WO_STAGE_POS = 9;
-WO_ARCODE_POS = 10;
-WO_PRIORITY_POS = 11;
-WO_USERNAME_POS = 12;
-WO_TECHNICIAN_POS = 13;
+WO_ARCODE_POS = 9;
+WO_PRIORITY_POS = 10;
+WO_USERNAME_POS = 11;
+WO_TECHNICIAN_POS = 12;
+WO_STAGE_POS = 13;
 WO_TECHPICKUP_POS = 14;
+WO_WHSTAGE_POS = 15;
 
 last_list_wo = 0;
 
@@ -183,10 +193,10 @@ void listWorkOrders(Div iholder, String ilbid, Datebox istart, Datebox iend,
 	Listbox newlb = lbhand.makeVWListbox_Width(iholder, hds, ilbid, 3);
 
 	sqlstm = "select origid,datecreated,customer_name,ar_code,contact," +
-	"work_type,serial_no,model,warrantycard,status,stage,priority,username,technician,stage_date from workorders ";
+	"work_type,serial_no,model,warranty_status,status,stage,priority,username,technician,stage_date from workorders ";
 
-	unm = "AH_PAI";
-	try { unm = useraccessobj.username; } catch (Exception e) {}
+	unm = "PADMIN";
+	try { unm = useraccessobj.username.toUpperCase(); } catch (Exception e) {}
 
 	sdate = kiboo.getDateFromDatebox(istart);
 	edate = kiboo.getDateFromDatebox(iend);
@@ -232,7 +242,7 @@ void listWorkOrders(Div iholder, String ilbid, Datebox istart, Datebox iend,
 	newlb.addEventListener("onSelect", workorderlb_cliker);
 
 	String[] fl = { "origid","datecreated","customer_name","contact","work_type",
-	"serial_no","model","warrantycard","status","stage","ar_code","priority","username","technician","stage_date" };
+	"serial_no","model","warranty_status","status","ar_code","priority","username","technician","stage","stage_date" };
 	ArrayList kabom = new ArrayList();
 
 	for(d : r)
@@ -243,6 +253,17 @@ void listWorkOrders(Div iholder, String ilbid, Datebox istart, Datebox iend,
 		if(d.get("priority").equals("MEDIUM")) sty = PRIORITY_MEDIUM_STYLE;
 		if(d.get("priority").equals("HIGH")) sty = PRIORITY_HIGH_STYLE;
 		if(d.get("priority").equals("ZERO_TOLERANCE")) sty = PRIORITY_ZTC_STYLE;
+
+		// Get WH stage based on work-order
+		wocode = WO_Linkcode(WORKORDER_PREFIX,d.get("origid").toString());
+		whsql = "select stage from tblStockOutMaster where WorksOrder='" + wocode + "';";
+		whrc = sqlhand.rws_gpSqlFirstRow(whsql);
+		whstage = "";
+		if(whrc != null)
+		{
+			whstage = kiboo.checkNullString(whrc.get("stage"));
+		}
+		kabom.add(whstage);
 
 		li = lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false",sty);
 		if(d.get("priority").equals("ZERO_TOLERANCE")) li.setSclass("blink");

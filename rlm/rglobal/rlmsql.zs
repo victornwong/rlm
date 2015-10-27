@@ -112,6 +112,18 @@ Object getCustomer_Rec(String iwhat)
 	return sqlhand.rws_gpSqlFirstRow(sqlstm);
 }
 
+/**
+ * Get location/Bin from StockList by Itemcode/serial-no.
+ * @param  isnum the serial no.
+ * @return the Bin/location
+ */
+String getInventoryLastLoca(String isnum)
+{
+	sqlstm = "select Bin from StockList where Itemcode='" + isnum + "';";
+	r = sqlhand.rws_gpSqlFirstRow(sqlstm);
+	try { return kiboo.checkNullString( r.get("Bin") ); } catch (Exception e) { return ""; }
+}
+
 void massDisableComponents(Object[] icomps, boolean iwhat)
 {
 	for(i=0;i<icomps.length;i++)

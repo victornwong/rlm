@@ -162,6 +162,11 @@ void woFunc(String iwhat)
 			msgtext = "Work-order was already picked-up by you.. complete it ASAP";
 	}
 
+	if(iwhat.equals("compoletewo_b")) // technician complete the work-order, set stage fields and etc
+	{
+
+	}
+
 	if(iwhat.equals("stgdone_b")) // set stage to DONE - testing purposes
 	{
 		sqlstm = "update workorders set stage='" + WOSTAGE_DONE + "' where origid=" + glob_sel_workorder;
@@ -416,8 +421,9 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 	<separator height="3px" />
 	<div id="workarea" sclass="shadowbox" style="background:#2F6B9C" visible="false">
 		<hbox>
-			<button id="pickupwo_b" label="Pickup work-order" sclass="k9mo" onClick="woFunc(self.getId())" />
+			<button id="pickupwo_b" label="Start work-order" sclass="k9mo" onClick="woFunc(self.getId())" />
 			<button id="saveiris_b" label="Save IRIS codings" sclass="k9mo" onClick="woFunc(self.getId())" />
+			<button id="compoletewo_b" label="Complete work-order" sclass="k9mo" onClick="woFunc(self.getId())" />
 			<separator width="15px" />
 			<label id="showfastmessage_lbl" sclass="wbo" />
 		</hbox>

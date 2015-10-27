@@ -157,16 +157,15 @@ void listOutbounds(int itype)
 {
 	last_list_type = itype;
 	Listbox newlb = lbhand.makeVWListbox_Width(outbounds_holder, outbdhds, "outbounds_lb", 3);
+	st = kiboo.replaceSingleQuotes(searhtxt_tb.getValue().trim());
+	sdate = kiboo.getDateFromDatebox(startdate);
+	edate = kiboo.getDateFromDatebox(enddate);
 
 	sqlstm = "select Id,strDate,customer_name,status,order_type,stage,username,WorksOrder from tblStockOutMaster tm ";
 
 	switch(itype)
 	{
 		case 1:
-			st = kiboo.replaceSingleQuotes(searhtxt_tb.getValue().trim());
-			sdate = kiboo.getDateFromDatebox(startdate);
-			edate = kiboo.getDateFromDatebox(enddate);
-
 			sqlstm += "where strDate between '" + sdate + " 00:00:00' and '" + edate + " 23:59:00' ";
 			if(!st.equals(""))
 				sqlstm += " and (customer_name like '%" + st + "%' or order_type like '%" + st + "%' or stage like '%" + st + "%');";
@@ -174,6 +173,17 @@ void listOutbounds(int itype)
 
 		case 2:
 			try { sti = Integer.parseInt(byoutnum_tb.getValue().trim()).toString(); sqlstm += "where tm.Id=" + sti; }
+			catch (Exception e) { byoutnum_tb.setValue(""); return; }
+			break;
+
+		case 3: // for part-returns, hmm.. list only DONE-stage outbound .. else non-DONE, can remove them items manually
+			sqlstm += "where strDate between '" + sdate + " 00:00:00' and '" + edate + " 23:59:00' and stage='DONE' ";
+			if(!st.equals(""))
+					sqlstm += "and customer_name like '%" + st + "%';";
+			break;
+
+		case 4: // for part-returns, only DONE-stage
+			try { sti = Integer.parseInt(byoutnum_tb.getValue().trim()).toString(); sqlstm += "where stage='DONE' and tm.Id=" + sti; }
 			catch (Exception e) { byoutnum_tb.setValue(""); return; }
 			break;
 	}

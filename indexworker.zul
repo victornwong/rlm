@@ -83,6 +83,7 @@ void runThings(String iwhat)
 	if(iwhat.equals("stockmaster_m")) apfn = "rlm/stockMasterMan_v1.zul";
 	if(iwhat.equals("suppliers_m")) apfn = "rlm/supplierManPanel_v1.zul";
 	if(iwhat.equals("inbound_m")) apfn = "rlm/inboundStock_v1.zul";
+	if(iwhat.equals("partreturn_m")) apfn = "rlm/whPartsReturn_v1.zul";
 	if(iwhat.equals("outbound_m")) apfn = "rlm/outboundReq_v1.zul";
 	if(iwhat.equals("purchaseorder_m")) apfn = "rlm/purchaseOrderNG_v1.zul";
 	if(iwhat.equals("stocklist_m")) apfn = "rlm/inventoryMan_v1.zul";
@@ -170,7 +171,10 @@ All codes written by Victor Wong otherwise stated else
 		<label sclass="k9mo" style="color:#ffffff" value="WH Outbound Backlogs" /></div>
 
 		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="inbound_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="WH Inbound Goods Receival" /></div>
+		<label sclass="k9mo" style="color:#ffffff" value="Inbound Goods Receival" /></div>
+
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="partreturn_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Parts Return" /></div>
 
 		<div sclass="shadowbox" style="${DIVBUTTONSEPARATORSTYLE}" width="${DIVBUTTONWIDTH}" />
 
