@@ -194,7 +194,7 @@ void woFunc(String iwhat)
 			"address2='" + d[3] + "', address3='" + d[4] + "', address4='" + d[5] + "', contact='" + d[6] + "', telephone='" + d[7] + "', email='" + d[8] + "', " +
 			"work_type='" + d[9] + "', asc_user='" + d[10] + "', model='" + d[11] + "', serial_no='" + d[12] + "', warrantycard='" + d[13] + "', " +
 			"remarks='" + d[14] + "', priority='" + d[15] + "', technician='" + d[16] + "', purchase_date='" + d[17] + "', warranty_status='" + d[18] + "', " +
-			"appointment_date='" + d[19] + "', appointment_time='" + d[20] + "' " +
+			"appointment_date='" + d[19] + "', appointment_time='" + d[20] + "', dealer_ref='" + d[21] + "' " +
 			"where origid=" + glob_sel_workorder;
 
 			if(DEBUG_MODE) debugbox.setValue(sqlstm);
@@ -333,6 +333,14 @@ void woFunc(String iwhat)
 				msgtext = "ERR: work-order already DONE, please check with supervisor on charges and etc before suspension";
 			}
 		}
+
+		if(iwhat.equals("printwo_b")) // print committed work-order
+		{
+			// Committed WO print only
+			if(glob_wo_status.equals("COMMIT")) printWO_birt(glob_sel_workorder);
+			else msgtext = "Do commit the work-order first to print..";
+		}
+
 	}
 
 	if(renum)
@@ -355,8 +363,28 @@ void woFunc(String iwhat)
 	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
 }
 
+/**
+ * Print WO in BIRT, uses WORKORDER_PREFIX as wopref param to BIRT. Concat with iwo to form full WO ID
+ * @param iwo selected WO
+ */
+void printWO_birt(String iwo)
+{
+	bfn = "rlm/workorder_v1.rptdesign";
+	thesrc = birtURL() + bfn + "&woid=" + iwo + "&wopref=" + WORKORDER_PREFIX;
+
+	if(woprintholder.getFellowIfAny("woprintframe") != null) woprintframe.setParent(null);
+	Iframe newiframe = new Iframe();
+	newiframe.setId("woprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
+	newiframe.setSrc(thesrc); newiframe.setParent(woprintholder);
+	woprintoutput.open(printwo_b);
+}
+
 ]]>
 </zscript>
+
+<popup id="woprintoutput">
+	<div id="woprintholder" width="700px" />
+</popup>
 
 <popup id="selcustomer_pop">
 	<div sclass="shadowbox" style="background:#F0D126" width="650px" >
@@ -499,6 +527,7 @@ void woFunc(String iwhat)
 	<div sclass="shadowbox" style="background:#6991B8">
 		<hbox>
 			<button id="listworks_b" label="List" sclass="k9mo" onClick="listpopop.open(self)" />
+			<separator width="10px" />
 			<button id="newwork_b" label="New work order" sclass="k9mo" onClick="woFunc(self.getId())" />
 			<button id="commitwork_b" label="Commit" sclass="k9mo" onClick="woFunc(self.getId())" />
 			<button id="printwo_b" label="Print" sclass="k9mo" onClick="woFunc(self.getId())" />
@@ -513,6 +542,7 @@ void woFunc(String iwhat)
 		<separator height="3px" />
 		<div id="workorder_holder" />
 	</div>
+
 	<separator height="3px" />
 	<div id="workarea" sclass="shadowbox" style="background:#2F6B9C" visible="false">
 		<hbox>
@@ -588,7 +618,7 @@ void woFunc(String iwhat)
 				</hbox>
 			</div>
 			<div>
-				<grid sclass="GridLayoutNoBorder" width="500px">
+				<grid sclass="GridLayoutNoBorder" width="550px">
 					<rows>
 						<row style="${WODETAIL_STYLE}">
 							<label value="Work type" sclass="wbo" />
@@ -613,6 +643,10 @@ void woFunc(String iwhat)
 							<datebox id="w_purchase_date" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
 							<label value="Warranty status" sclass="wbo" />
 							<listbox id="w_warranty_status" sclass="k9" mold="select" />
+						</row>
+						<row style="${WODETAIL_STYLE}" spans="1,3">
+							<label value="Dealer ref." sclass="wbo" />
+							<textbox id="w_dealer_ref" sclass="k9" />
 						</row>
 						<row style="${WODETAIL_STYLE}" spans="4">
 							<label value="Problem description" sclass="wbo" />
@@ -706,7 +740,7 @@ void woFunc(String iwhat)
 							</row>
 						</rows>
 					</grid>
-				</div>
+			</div>
 		</div>
 	</div>
 
@@ -725,12 +759,12 @@ initIRIS_selector();
 Object[] wocustomermetaboxes = { 
 	w_ar_code, w_customer_name, w_address1, w_address2, w_address3, w_address4,
 	w_contact, w_telephone, w_email, w_work_type, w_asc_user, w_model, w_serial_no, w_warrantycard, w_remarks, w_priority, w_technician, w_purchase_date,
-	w_warranty_status, w_appointment_date, w_appointment_time };
+	w_warranty_status, w_appointment_date, w_appointment_time, w_dealer_ref };
 
 String[] wocustomermfields = {
 	"ar_code", "customer_name", "address1", "address2", "address3", "address4",
 	"contact", "telephone", "email", "work_type", "asc_user", "model", "serial_no", "warrantycard", "remarks", "priority", "technician", "purchase_date",
-	"warranty_status", "appointment_date", "appointment_time" };
+	"warranty_status", "appointment_date", "appointment_time", "dealer_ref" };
 
 Object[] woextrameta = { w_close_work, w_close_by, w_deliverdate, w_delivery_mode, w_delivery_bill };
 String[] woextramfields = { "close_work", "close_by", "deliverdate", "delivery_mode", "delivery_bill" };

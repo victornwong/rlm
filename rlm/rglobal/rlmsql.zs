@@ -552,3 +552,23 @@ int calcDayDiff(java.util.Date id1, java.util.Date id2)
 	}
 	catch (Exception e) { return 0; }
 }
+
+/**
+ * Check listbox column for empty list-item, if empty, return false. Else iterate till end, return true
+ * lbholder : Div holder
+ * lbid : listbox string ID
+ * icolumn : column to check
+*/
+boolean checkListboxEmptyColumn(Div lbholder, String lbid, int icolumn)
+{
+	newlb = lbholder.getFellowIfAny(lbid);
+	if(newlb == null) return false;
+	ts = newlb.getItems().toArray();
+	if(ts.length == 0) return false;
+	for(i=0;i<ts.length;i++)
+	{
+		ck = lbhand.getListcellItemLabel(ts[i],icolumn).trim();
+		if(ck.equals("")) return false;
+	}
+	return true;
+}

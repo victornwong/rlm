@@ -35,3 +35,15 @@ WOSTAGE_WIP = "WIP";
 WOSTAGE_TRANS = "TRANSIT";
 WOSTAGE_DONE = "DONE";
 WOSTAGE_KIV = "KIV";
+
+BIRT_WEBVIEWER_SHORT = "/birt/frameset?__report=";
+EXTERNAL_BIRTVIEWER = "http://192.168.130.198:8080/BIRT/frameset?__report=";
+
+// Make the BIRT URL outta ZK Executions.getCurrent() stuff
+String birtURL()
+{
+	callscheme = Executions.getCurrent().getScheme();
+	theurl = Executions.getCurrent().getServerName();
+	theport = Executions.getCurrent().getServerPort().toString();
+	return callscheme + "://" + theurl + ":" + theport + BIRT_WEBVIEWER_SHORT;
+}

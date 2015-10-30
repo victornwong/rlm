@@ -10,7 +10,7 @@
 <zscript src="stockManf/itemsfunc.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "WH INBOUND Goods Receival Management";
+MYTITLE = "WHIN";
 MYVERSION = "v0.1";
 MYPANEL = "inbounstockpanel";
 /**
@@ -276,26 +276,6 @@ void putAwayStock(String istkinid, String istkid, String iref, Div lbholder, Str
 	sql.close();
 }
 
-/**
- * Check listbox column for empty list-item, if empty, return false. Else iterate till end, return true
- * lbholder : Div holder
- * lbid : listbox string ID
- * icolumn : column to check
-*/
-boolean checkListboxEmptyColumn(Div lbholder, String lbid, int icolumn)
-{
-	newlb = lbholder.getFellowIfAny(lbid);
-	if(newlb == null) return false;
-	ts = newlb.getItems().toArray();
-	if(ts.length == 0) return false;
-	for(i=0;i<ts.length;i++)
-	{
-		ck = lbhand.getListcellItemLabel(ts[i],icolumn).trim();
-		if(ck.equals("")) return false;
-	}
-	return true;
-}
-
 void deleteStockin(String istkin)
 {
 	sqlstm = "delete from tblStockInDetail where parent_id=" + istkin;
@@ -352,12 +332,30 @@ void itemFunc(String iwhat)
 		try { fv = kiboo.replaceSingleQuotes( i_bin_tb.getValue().trim() ); lbhand.setListcellItemLabel(itemcode_sel_obj,ITEM_LOCA_POS,fv); } catch (Exception e) {}
 	}
 
+	if(iwhat.equals("printinlabel_b")) // print in-bound ID labels
+	{
+		if(glob_stkin_id.equals("")) return;
+		printStockinLabels_birt(glob_stkin_id);
+	}
+
 	if(!sqlstm.equals(""))
 	{
 		sqlhand.rws_gpSqlExecuter(sqlstm);
 		refreshThings();
 	}
 	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
+}
+
+void printStockinLabels_birt(String pstkin)
+{
+	bfn = "rlm/stockidlabel_v1.rptdesign";
+	thesrc = birtURL() + bfn + "&whstkin=" + pstkin;
+
+	if(stkinprintholder.getFellowIfAny("stkinprintframe") != null) stkinprintframe.setParent(null);
+	Iframe newiframe = new Iframe();
+	newiframe.setId("stkinprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
+	newiframe.setSrc(thesrc); newiframe.setParent(stkinprintholder);
+	stkinprintoutput.open(printinlabel_b);
 }
 
 /**
@@ -512,6 +510,10 @@ void showStock_location(String istkid, Div iholder, String ilbid)
 
 ]]>
 </zscript>
+
+<popup id="stkinprintoutput">
+	<div id="stkinprintholder" width="700px" />
+</popup>
 
 <popup id="itemsmpf_pop">
 	<div sclass="shadowbox" style="${MPFPOP_BACKGROUND}" width="300px">
@@ -742,11 +744,12 @@ void showStock_location(String istkid, Div iholder, String ilbid)
 	<div sclass="shadowbox" style="background:#C7740D">
 		<hbox>
 			<button label="List stock-in vouchers" sclass="k9mo" onClick="listout_pop.open(self)" />
+			<separator width="10px" />
 			<button id="newstockin_b" label="New stock-in" sclass="k9mo" onClick="doFunc(self.getId())" />
 			<button id="commitstkin_b" label="COMMIT" sclass="k9mo" onClick="doFunc(self.getId())" />
 			<button label="PUT AWAY STOCK" sclass="k9mo" visible="true" onClick="putawaypop.open(self)" />
 			<separator width="10px" />
-			<button label="ADMIN" sclass="k9mo" style="color:#EE1D1D" onClick="adminpop.open(self)" />
+			<button id="adminbutt" label="ADMIN" sclass="k9mo" style="color:#EE1D1D" onClick="adminpop.open(self)" visible="false" />
 		</hbox>
 	</div>
 	<separator height="3px" />
@@ -796,6 +799,8 @@ void showStock_location(String istkid, Div iholder, String ilbid)
 					<button id="chkdupitem_b" label="Check duplicate" sclass="k9mo" onClick="itemFunc(self.getId())" />
 					<button id="saveitem_b" label="Save" sclass="k9mo" onClick="itemFunc(self.getId())" />
 					<button id="remvitem_b" label="Remove" sclass="k9mo" onClick="itemFunc(self.getId())" />
+					<separator width="10px" />
+					<button id="printinlabel_b" label="Print ID label" sclass="k9mo" onClick="itemFunc(self.getId())" />
 				</hbox>
 				<div id="captureitemcodes_holder" />
 			</vbox>
@@ -818,6 +823,11 @@ fillListbox_uniqField("StockMasterDetails","ClassCode", m_classcode_lb );
 */
 
 fillStockMasterSelectorDropdowns(); // stocklister.zs
+
+if(useraccessobj.accesslevel == 9)
+{
+	adminbutt.setVisible(true);
+}
 
 ]]>
 </zscript>

@@ -11,7 +11,7 @@
 <zscript src="stockManf/outboundlister.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "WH OUTBOUND Requests Management";
+MYTITLE = "WHSTKOUT";
 MYVERSION = "v0.1";
 MYPANEL = "outboundreqpanel";
 /**
@@ -317,6 +317,11 @@ void outboundFunc(String iwhat)
 
 			msgtext = "BOOM.. deleted.. you wish";
 		}
+
+		if(iwhat.equals("printpartsreq_b")) // print parts-request, for front-desk as cash-sales too
+		{
+			expPrintParts_salesorder(glob_sel_stkout);
+		}
 	}
 
 	if(renum) renumberListbox(obitemslb,0,1,true);
@@ -329,8 +334,79 @@ void outboundFunc(String iwhat)
 	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
 }
 
+void expPrintParts_salesorder(String pStkout)
+{
+	// parse and insert items into stkoutprint
+	r = getOutboundRec(pStkout);
+	if(r == null)
+	{
+		guihand.showMessageBox("ERR: cannot get stock-out record from database.. contact technical");
+		return;
+	}
+	
+	sqlstm = "delete from stkoutprint where stkout_parent=" + pStkout;
+	sqlhand.rws_gpSqlExecuter(sqlstm); // delete prev entries in stkoutprint
+
+	Sql sql = wms_Sql();
+	Connection thecon = sql.getConnection();
+	PreparedStatement pstmt = thecon.prepareStatement("insert into stkoutprint (item_desc,unit_price,qty,stock_code,stk_id,stkout_parent) values " +
+		"(?,?,?,?,?,?);");
+
+	desc = stkid = qty = uprice = null;
+
+	try {
+	desc = r.get("order_desc").split("::");
+	stkid = r.get("order_stockid").split("::");
+	qty = r.get("order_qty").split("::");
+	uprice = r.get("order_uprice").split("::");
+	} catch (Exception e) {}
+
+	if(desc == null) return;
+
+	for(i=0; i<desc.length; i++)
+	{
+		pstmt.setString(1,desc[i]);
+		iuprice = 0.0; try { uprc = Float.parseFloat(uprice[i]); } catch (Exception e) {}
+		pstmt.setFloat(2,uprc);
+		iqty = 0; try { iqty = Integer.parseInt(qty[i]); } catch (Exception e) {}
+		pstmt.setInt(3,iqty);
+
+		// INEFFICIENT codes to get stock_code from stockmasterdetails - RECODE
+		sr = null; try { sr = sqlhand.rws_gpSqlFirstRow("select Stock_Code from StockMasterDetails where ID=" + stkid[i]); }  catch (Exception e) {}
+		sc = (sr == null) ? UNKNOWN_STRING : sr.get("Stock_Code");
+		pstmt.setString(4,sc);
+
+		istkid = 0; try { istkid = Integer.parseInt(stkid[i]); } catch (Exception e) {}
+		pstmt.setInt(5,istkid);
+
+		pstmt.setInt(6,Integer.parseInt(pStkout));
+		pstmt.addBatch();
+	}
+
+	pstmt.executeBatch(); pstmt.close();
+	sql.close();
+
+	printPartsReq_birt(pStkout);
+}
+
+void printPartsReq_birt(String pStkout)
+{
+	bfn = "rlm/fd_partsales_v1.rptdesign";
+	thesrc = birtURL() + bfn + "&whstkout=" + pStkout + "&whstkoutpref=" + STKOUT_PREFIX;
+
+	if(partreqprintholder.getFellowIfAny("partsprintframe") != null) partsprintframe.setParent(null);
+	Iframe newiframe = new Iframe();
+	newiframe.setId("partsprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
+	newiframe.setSrc(thesrc); newiframe.setParent(partreqprintholder);
+	partreqprintoutput.open(printpartsreq_b);
+}
+
 ]]>
 </zscript>
+
+<popup id="partreqprintoutput">
+	<div id="partreqprintholder" width="700px" />
+</popup>
 
 <popup id="liststkmaster_pop">
 	<div sclass="shadowbox" style="${NEWSTOCKITEM_BACKGROUND}" width="800px" >
@@ -505,10 +581,11 @@ void outboundFunc(String iwhat)
 	<div sclass="shadowbox" style="background:#6991B8">
 		<hbox>
 			<button label="List" sclass="k9mo" onClick="listpopop.open(self)" />
+			<separator width="10px" />
 			<button id="newoutbound_b" label="New order" sclass="k9mo" onClick="outboundFunc(self.getId())" />
 			<button id="commit_b" label="COMMIT" sclass="k9mo" onClick="outboundFunc(self.getId())" />
-			<button label="Print" sclass="k9mo" onClick="" />
-			<button label="Export" sclass="k9mo" onClick="" />
+			<button id="printpartsreq_b" label="Print" sclass="k9mo" onClick="outboundFunc(self.getId())" />
+			<button id="exportpartsreq_b" label="Export" sclass="k9mo" onClick="outboundFunc(self.getId())" />
 			<separator width="10px" />
 			<button id="suspend_b" label="Suspend" sclass="k9mo" style="color:#F2670C" onClick="outboundFunc(self.getId())" />
 			<separator width="10px" />

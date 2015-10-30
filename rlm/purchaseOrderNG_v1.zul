@@ -128,105 +128,6 @@ void deletePO(String ipo)
 }
 
 /**
- * PO funcs dispenser
- * @param iwhat button-ID
- */
-void poFunc(String iwhat)
-{
-	adminpop.close();
-	todaydate =  kiboo.todayISODateTimeString();
-	msgtext = sqlstm = sts = "";
-	unm = "tester";
-	try { unm = useraccessobj.username; } catch (Exception e) {}
-
-	if(iwhat.equals("newpo_b")) // insert new PO
-	{
-		sqlstm = "insert into PurchaseRequisition (supplier_name,datecreated,pr_status,curcode,username) values ('UNKNOWN SUPPLIER','" + todaydate + "','DRAFT','MYR','" + unm + "');";
-	}
-	else
-	{
-		if(glob_sel_po.equals("")) return;
-
-		if(iwhat.equals("updpometa_b")) // update PO metadata
-		{
-			dt = ngfun.getString_fromUI(pometaboxes);
-			sqlstm = "update PurchaseRequisition set APCode='" + dt[0] + "',supplier_name='" + dt[1] + "',sup_address='" + dt[2] + "'," +
-			"sup_tel='" + dt[3] + "',sup_fax='" + dt[4] + "',sup_email='" + dt[5] + "',sup_contact='" + dt[6] + "',curcode='" + dt[7] + "' " +
-			"where origid=" + glob_sel_po;
-		}
-
-		if(iwhat.equals("delpo_b")) // delete PO
-		{
-			if(Messagebox.show("This will hard-delete the PO..", "Are you sure?",
-				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
-
-			deletePO(glob_sel_po);
-		}
-
-		if(iwhat.equals("setdraftpo_b")) // set PO to draft - admin
-		{
-			sqlstm = "update PurchaseRequisition set pr_status='DRAFT' where origid=" + glob_sel_po;
-			glob_sel_po_status = "DRAFT";
-		}
-
-		if(iwhat.equals("commitpo_b")) // commit PO, disable some butts
-		{
-			if(Messagebox.show("Once committed, no changes are allowed", "Are you sure?",
-				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
-
-			sqlstm = "update PurchaseRequisition set pr_status='COMMIT' where origid=" + glob_sel_po;
-			togPObutts(true);
-			glob_sel_po_status = "COMMIT";
-			// TODO send notif email
-		}
-
-		if(iwhat.equals("settoday_b")) // set PO to today's date
-		{
-			sqlstm = "update PurchaseRequisition set datecreated='" + todaydate + "' where origid=" + glob_sel_po;
-		}
-
-		if(iwhat.equals("suspendpo_b")) // suspend the PO
-		{
-			if(Messagebox.show("Suspending this PO will require authorized person to unlock it later", "Are you sure?",
-				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
-
-			sqlstm = "update PurchaseRequisition set pr_status='SUSPEND' where origid=" + glob_sel_po;
-			togPObutts(true);
-			glob_sel_po_status = "SUSPEND";
-		}
-
-		if(iwhat.equals("apprpo_b")) // approve the PO - needed to print-out the PO
-		{
-			if(Messagebox.show("Please ensure everything is in order before approving this PO", "Are you sure?",
-				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
-
-			sqlstm = "update PurchaseRequisition set pr_status='APPROVE' where origid=" + glob_sel_po;
-			togPObutts(true);
-			glob_sel_po_status = "APPROVE";
-		}
-
-		if(iwhat.equals("printpo_b")) // print PO via BIRT - need to check only APPROVE PO can print
-		{
-			if(glob_sel_po_status.equals("APPROVE"))
-			{
-				msgtext = "PO template will be processed - later";
-			}
-			else
-			{
-				msgtext = "ERR: only PO which is APPROVED can be printed";
-			}
-		}
-	}
-
-	if(!sqlstm.equals(""))
-	{
-		sqlhand.rws_gpSqlExecuter(sqlstm);
-		listPO(last_show_po);
-	}
-	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
-}
-
-/**
  * POitems_callback activated by poitemdclik listbox event handler
  * @param isel the selected list-item
  */
@@ -418,8 +319,128 @@ void savePOitems(String ipo, Listbox ipilb)
 	sql.close();
 }
 
+/**
+ * PO funcs dispenser
+ * @param iwhat button-ID
+ */
+void poFunc(String iwhat)
+{
+	adminpop.close();
+	todaydate =  kiboo.todayISODateTimeString();
+	msgtext = sqlstm = sts = "";
+	unm = "tester";
+	try { unm = useraccessobj.username; } catch (Exception e) {}
+
+	if(iwhat.equals("newpo_b")) // insert new PO
+	{
+		sqlstm = "insert into PurchaseRequisition (supplier_name,datecreated,pr_status,curcode,username) values ('UNKNOWN SUPPLIER','" + todaydate + "','DRAFT','MYR','" + unm + "');";
+	}
+	else
+	{
+		if(glob_sel_po.equals("")) return;
+
+		if(iwhat.equals("updpometa_b")) // update PO metadata
+		{
+			dt = ngfun.getString_fromUI(pometaboxes);
+			sqlstm = "update PurchaseRequisition set APCode='" + dt[0] + "',supplier_name='" + dt[1] + "',sup_address='" + dt[2] + "'," +
+			"sup_tel='" + dt[3] + "',sup_fax='" + dt[4] + "',sup_email='" + dt[5] + "',sup_contact='" + dt[6] + "',curcode='" + dt[7] + "' " +
+			"where origid=" + glob_sel_po;
+		}
+
+		if(iwhat.equals("delpo_b")) // delete PO
+		{
+			if(Messagebox.show("This will hard-delete the PO..", "Are you sure?",
+				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+			deletePO(glob_sel_po);
+		}
+
+		if(iwhat.equals("setdraftpo_b")) // set PO to draft - admin
+		{
+			sqlstm = "update PurchaseRequisition set pr_status='DRAFT' where origid=" + glob_sel_po;
+			glob_sel_po_status = "DRAFT";
+		}
+
+		if(iwhat.equals("commitpo_b")) // commit PO, disable some butts
+		{
+			if(Messagebox.show("Once committed, no changes are allowed", "Are you sure?",
+				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+			sqlstm = "update PurchaseRequisition set pr_status='COMMIT' where origid=" + glob_sel_po;
+			togPObutts(true);
+			glob_sel_po_status = "COMMIT";
+			// TODO send notif email
+		}
+
+		if(iwhat.equals("settoday_b")) // set PO to today's date
+		{
+			sqlstm = "update PurchaseRequisition set datecreated='" + todaydate + "' where origid=" + glob_sel_po;
+		}
+
+		if(iwhat.equals("suspendpo_b")) // suspend the PO
+		{
+			if(Messagebox.show("Suspending this PO will require authorized person to unlock it later", "Are you sure?",
+				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+			sqlstm = "update PurchaseRequisition set pr_status='SUSPEND' where origid=" + glob_sel_po;
+			togPObutts(true);
+			glob_sel_po_status = "SUSPEND";
+		}
+
+		if(iwhat.equals("apprpo_b")) // approve the PO - needed to print-out the PO
+		{
+			if(Messagebox.show("Please ensure everything is in order before approving this PO", "Are you sure?",
+				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+			sqlstm = "update PurchaseRequisition set pr_status='APPROVE' where origid=" + glob_sel_po;
+			togPObutts(true);
+			glob_sel_po_status = "APPROVE";
+		}
+
+		if(iwhat.equals("printpo_b")) // print PO via BIRT - need to check only APPROVE PO can print
+		{
+			/*
+			if(glob_sel_po_status.equals("APPROVE"))
+			{
+				msgtext = "PO template will be processed - later";
+			}
+			else
+			{
+				msgtext = "ERR: only PO which is APPROVED can be printed";
+			}
+			*/
+		
+			printPO_birt(glob_sel_po);
+
+		}
+	}
+
+	if(!sqlstm.equals(""))
+	{
+		sqlhand.rws_gpSqlExecuter(sqlstm);
+		listPO(last_show_po);
+	}
+	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
+}
+
+void printPO_birt(String ipo)
+{
+	bfn = "rlm/purchaseOrder_v1.rptdesign";
+	thesrc = birtURL() + bfn + "&ponum=" + ipo + "&popref=" + PO_PREFIX;
+
+	if(poprintholder.getFellowIfAny("poprintframe") != null) poprintframe.setParent(null);
+	Iframe newiframe = new Iframe();
+	newiframe.setId("poprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
+	newiframe.setSrc(thesrc); newiframe.setParent(poprintholder);
+	poprintoutput.open(printpo_b);
+}
+
 ]]>
 </zscript>
+
+<popup id="poprintoutput">
+	<div id="poprintholder" width="700px" />
+</popup>
 
 <popup id="listpopop">
 	<div sclass="shadowbox" style="${LISTPOBACKGROUND}">
@@ -564,6 +585,7 @@ void savePOitems(String ipo, Listbox ipilb)
 	<div sclass="shadowbox" style="background:#6991B8">
 		<hbox>
 			<button label="List" sclass="k9mo" onClick="listpopop.open(self)" />
+			<separator width="10px" />
 			<button id="newpo_b" label="New PO" sclass="k9mo" onClick="poFunc(self.getId())" />
 			<button id="commitpo_b" label="Commit" sclass="k9mo" onClick="poFunc(self.getId())" />
 			<button id="suspendpo_b" label="Suspend" sclass="k9mo" onClick="poFunc(self.getId())" />

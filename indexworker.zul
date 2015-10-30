@@ -160,7 +160,7 @@ All codes written by Victor Wong otherwise stated else
 		<label sclass="k9mo" style="color:#ffffff" value="Work Order" /></div>
 
 		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="outbound_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="WH Outbound Requests" /></div>
+		<label sclass="k9mo" style="color:#ffffff" value="Parts Sales / Requests" /></div>
 
 	</vbox>
 </popup>
