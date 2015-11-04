@@ -112,6 +112,14 @@ Object getCustomer_Rec(String iwhat)
 	return sqlhand.rws_gpSqlFirstRow(sqlstm);
 }
 
+String getStockMaster_descriptionById(String istkid)
+{
+	if(istkid.equals("") || istkid.equals("0")) return "";
+	sqlstm = "select Description from StockMasterDetails where ID=" + istkid;
+	r = sqlhand.rws_gpSqlFirstRow(sqlstm);
+	try { return kiboo.checkNullString( r.get("Description") ); } catch (Exception e) { return ""; }
+}
+
 /**
  * Get location/Bin from StockList by Itemcode/serial-no.
  * @param  isnum the serial no.
@@ -594,5 +602,40 @@ void locateShiftListbox(Listbox ilb, int icolumn, String iwhat, String istyle)
 			ts[i].setStyle(istyle);
 		}
 	}
+}
+
+/**
+ * // Nag-bar timer things - define the timer in calling module
+	<div id="nagbar" style="background:#EDDB25">
+			<hbox>
+			<separator width="10px" />
+			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
+		</hbox>
+	</div>
+	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
+ */
+NAG_BAR_STYLE = "background:#EDDB25";
+NAG_TIMER_DELAY = 5000;
+nagcount = 0;
+
+/**
+ * Add nag text to nag-bar. Reset nagcount each time text added
+ * @param inagtext text to be added
+ */
+void putNagText(String inagtext)
+{
+	k = nagtext.getValue();
+	if(k.equals("")) k = inagtext;
+	else k = k + "\n" + inagtext;
+	nagcount = 0; nagtext.setValue(k);
+}
+
+/**
+ * Nag-bar timer called by timer obj
+ */
+void nagtimerFunc()
+{
+	nagcount++;
+	if(nagcount > 2) nagtext.setValue(""); 
 }
 

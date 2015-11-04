@@ -209,9 +209,15 @@ All codes written by Victor Wong otherwise stated else
 	</vbox>
 </popup>
 
+<popup id="utilitymenupop" style="opacity:0.7">
+	<vbox>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="chkstockmaster_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Check stock-master" /></div>
+	</vbox>
+</popup>
+
 <popup id="adminmenupop">
 	<vbox>
-
 		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="usercontrol_m" onClick="runThings(self.getId())">
 		<label sclass="k9mo" style="color:#ffffff" value="Users" /></div>
 
@@ -230,7 +236,7 @@ All codes written by Victor Wong otherwise stated else
 		<separator width="10px" />
 
 		<div style="${DIVBUTTONSTYLE2};padding:3px" onClick="mainmenupop.open(self)">
-			<label style="${MAINMENU_STYLE}" value="General" />
+			<label style="${MAINMENU_STYLE}" value="Front-desk" />
 		</div>
 
 		<div style="${DIVBUTTONSTYLE2};padding:3px">
@@ -239,6 +245,10 @@ All codes written by Victor Wong otherwise stated else
 
 		<div style="${DIVBUTTONSTYLE2};padding:3px">
 			<label style="${MAINMENU_STYLE}" value="Warehouse" onClick="warehousemenupop.open(self)" />
+		</div>
+
+		<div style="${DIVBUTTONSTYLE2};padding:3px" onClick="utilitymenupop.open(self)">
+			<label style="${MAINMENU_STYLE}" value="Utilities" />
 		</div>
 
 		<div style="${DIVBUTTONSTYLE2};padding:3px" onClick="settingmenupop.open(self)">

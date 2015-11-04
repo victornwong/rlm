@@ -5,6 +5,8 @@
 <zscript src="rglobal/formMaker_v1.zs" />
 <zscript src="rglobal/rlmsql.zs" />
 <zscript src="rglobal/supplierfunc.zs" />
+<zscript src="rglobal/orderqueuefunc.zs" />
+<zscript src="rglobal/poitemsfunc.zs" />
 <zscript src="stockManf/stocklister.zs" />
 <zscript src="stockManf/polister.zs" />
 <zscript>
@@ -53,6 +55,7 @@ LIMIT_SUPPLIERS_LOADING = " limit 100"; // used in supplierfunc.zs
 ISACTIVE_SUPPLIER_LOADING = ""; // set this in other modu to get active supplier only: and IsActive=1
 
 glob_sel_supplierid = glob_sel_apcode ="";
+glob_sel_stkid = glob_sel_stockcode = ""; // used to access orderqueufunc.zs
 
 String[] pometafields = { "APCode","supplier_name","sup_address","sup_tel","sup_fax","sup_email","sup_contact","curcode","exchange_rate" };
 glob_sel_poitem_obj = null;
@@ -133,76 +136,14 @@ void deletePO(String ipo)
  */
 void POitems_callback(Object isel)
 {
+	glob_sel_stkid = lbhand.getListcellItemLabel(isel,POITEMS_STOCKCODE);
+	glob_sel_stockcode = lbhand.getListcellItemLabel(isel,POITEMS_STOCKNAME);
+
 	glob_sel_poitem_obj = isel;
 	pi_extranotes_tb.setValue( lbhand.getListcellItemLabel(isel,POITEMS_EXTRANOTE) );
 	pi_qty_tb.setValue( lbhand.getListcellItemLabel(isel,POITEMS_QTY) );
 	pi_unitprice_tb.setValue( lbhand.getListcellItemLabel(isel,POITEMS_UPRICE) );
 	editpoitem_pop.open(isel);
-}
-
-Object[] poitemshds =
-{
-	new listboxHeaderWidthObj("No.",true,"55px"),
-	new listboxHeaderWidthObj("stockcode",false,""),
-	new listboxHeaderWidthObj("Stock name",true,"150px"),
-	new listboxHeaderWidthObj("Description",true,""),
-	new listboxHeaderWidthObj("Qty",true,"50px"),
-	new listboxHeaderWidthObj("U/Price",true,"70px"),
-	new listboxHeaderWidthObj("SubTotal",true,"70px"),
-};
-POITEMS_STOCKCODE = 1;
-POITEMS_STOCKNAME = 2;
-POITEMS_EXTRANOTE = 3;
-POITEMS_QTY = 4;
-POITEMS_UPRICE = 5;
-POITEMS_SUBTOTAL = 6;
-
-class poitemdclik implements org.zkoss.zk.ui.event.EventListener
-{
-	public void onEvent(Event event) throws UiException
-	{
-		isel = event.getTarget();
-		try
-		{
-			POitems_callback(isel);
-		} catch (Exception e) {}
-	}
-}
-poitems_dclick = new poitemdclik();
-
-/**
- * More flexible to show PO items
- * @param ipo     the selected PO
- * @param iholder DIV holder
- * @param ilbid   listbox ID
- */
-Listbox showPOitems(String ipo, Div iholder, String ilbid)
-{
-	Listbox newlb = lbhand.makeVWListbox_Width(iholder, poitemshds, ilbid, 10);
-	newlb.setMultiple(true); newlb.setCheckmark(true);
-	pograndtotal_lbl.setValue(""); // always clear previous grand-total if any
-
-	sqlstm = "select m.description,m.unitprice,m.quantity,m.stock_code," +
-	"(select stock_code from StockMasterDetails where ID=m.stock_code) as stockname from PurchaseReq_Items m where m.pr_parent_id=" + ipo;
-	r = sqlhand.rws_gpSqlGetRows(sqlstm);
-	if(r.size() > 0)
-	{
-		String[] fl = { "stock_code","stockname","description","quantity","unitprice" };
-		ArrayList kabom = new ArrayList();
-		for(d : r)
-		{
-			kabom.add("0");
-			ngfun.popuListitems_Data(kabom,fl,d);
-			kabom.add("0"); // subtotal
-			lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
-			kabom.clear();
-		}
-
-		recalcSubtotal(newlb,POITEMS_QTY,POITEMS_UPRICE,POITEMS_SUBTOTAL);
-		renumberListbox(newlb, 0, 1, true);
-		lbhand.setDoubleClick_ListItems(newlb, poitems_dclick);
-	}
-	return newlb;
 }
 
 /**
@@ -272,7 +213,7 @@ void poItemsFunc(String iwhat)
 	if(iwhat.equals("savepoitem_b"))
 	{
 		savePOitems(glob_sel_po,polb);
-		msgtext = "OK: items saved..";
+		msgtext = "OK: purchase items saved..";
 	}
 
 	if(iwhat.equals("chkdupitems_b")) // check dups PO items - abit of utility func
@@ -290,33 +231,7 @@ void poItemsFunc(String iwhat)
 	{
 		sqlhand.rws_gpSqlExecuter(sqlstm);
 	}
-	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
-}
-
-void savePOitems(String ipo, Listbox ipilb)
-{
-	if(ipilb.getItemCount() == 0) return;
-	ts = ipilb.getItems().toArray();
-
-	sqlstm = "delete from PurchaseReq_Items where pr_parent_id=" + ipo;
-	sqlhand.rws_gpSqlExecuter(sqlstm); // delete existing PO items
-
-	Sql sql = wms_Sql();
-	Connection thecon = sql.getConnection();
-	for(i=0;i<ts.length;i++)
-	{
-		PreparedStatement pstmt = thecon.prepareStatement(
-			"insert into PurchaseReq_Items (pr_parent_id,description,unitprice,quantity,stock_code) " +
-			"values (?,?,?,?,?);");
-
-		pstmt.setInt(1,Integer.parseInt(ipo));
-		pstmt.setString(2, lbhand.getListcellItemLabel(ts[i],POITEMS_EXTRANOTE) );
-		pstmt.setFloat(3, Float.parseFloat( lbhand.getListcellItemLabel(ts[i],POITEMS_UPRICE) ) );
-		pstmt.setInt(4,Integer.parseInt( lbhand.getListcellItemLabel(ts[i],POITEMS_QTY) ));
-		pstmt.setInt(5,Integer.parseInt( lbhand.getListcellItemLabel(ts[i],POITEMS_STOCKCODE) ));
-		pstmt.executeUpdate();
-	}
-	sql.close();
+	if(!msgtext.equals("")) putNagText(msgtext);
 }
 
 /**
@@ -355,11 +270,12 @@ void poFunc(String iwhat)
 				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
 
 			deletePO(glob_sel_po);
+			msgtext = "PO deleted..";
 		}
 
 		if(iwhat.equals("setdraftpo_b")) // set PO to draft - admin
 		{
-			sqlstm = "update PurchaseRequisition set pr_status='DRAFT' where origid=" + glob_sel_po;
+			sqlstm = "update PurchaseRequisition set pr_status='DRAFT', approvedate=null where origid=" + glob_sel_po;
 			glob_sel_po_status = "DRAFT";
 		}
 
@@ -368,7 +284,7 @@ void poFunc(String iwhat)
 			if(Messagebox.show("Once committed, no changes are allowed", "Are you sure?",
 				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
 
-			sqlstm = "update PurchaseRequisition set pr_status='COMMIT' where origid=" + glob_sel_po;
+			sqlstm = "update PurchaseRequisition set pr_status='COMMIT',approvedate=null where origid=" + glob_sel_po;
 			togPObutts(true);
 			glob_sel_po_status = "COMMIT";
 			// TODO send notif email
@@ -384,7 +300,7 @@ void poFunc(String iwhat)
 			if(Messagebox.show("Suspending this PO will require authorized person to unlock it later", "Are you sure?",
 				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
 
-			sqlstm = "update PurchaseRequisition set pr_status='SUSPEND' where origid=" + glob_sel_po;
+			sqlstm = "update PurchaseRequisition set pr_status='SUSPEND', approvedate=null where origid=" + glob_sel_po;
 			togPObutts(true);
 			glob_sel_po_status = "SUSPEND";
 		}
@@ -394,7 +310,7 @@ void poFunc(String iwhat)
 			if(Messagebox.show("Please ensure everything is in order before approving this PO", "Are you sure?",
 				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
 
-			sqlstm = "update PurchaseRequisition set pr_status='APPROVE' where origid=" + glob_sel_po;
+			sqlstm = "update PurchaseRequisition set pr_status='APPROVE', approvedate='" + todaydate + "' where origid=" + glob_sel_po;
 			togPObutts(true);
 			glob_sel_po_status = "APPROVE";
 		}
@@ -404,16 +320,14 @@ void poFunc(String iwhat)
 			/*
 			if(glob_sel_po_status.equals("APPROVE"))
 			{
-				msgtext = "PO template will be processed - later";
+				printPO_birt(glob_sel_po); // pofuncs.zs
 			}
 			else
 			{
 				msgtext = "ERR: only PO which is APPROVED can be printed";
 			}
 			*/
-		
 			printPO_birt(glob_sel_po);
-
 		}
 	}
 
@@ -422,19 +336,7 @@ void poFunc(String iwhat)
 		sqlhand.rws_gpSqlExecuter(sqlstm);
 		listPO(last_show_po);
 	}
-	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
-}
-
-void printPO_birt(String ipo)
-{
-	bfn = "rlm/purchaseOrder_v1.rptdesign";
-	thesrc = birtURL() + bfn + "&ponum=" + ipo + "&popref=" + PO_PREFIX;
-
-	if(poprintholder.getFellowIfAny("poprintframe") != null) poprintframe.setParent(null);
-	Iframe newiframe = new Iframe();
-	newiframe.setId("poprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
-	newiframe.setSrc(thesrc); newiframe.setParent(poprintholder);
-	poprintoutput.open(printpo_b);
+	if(!msgtext.equals("")) putNagText(msgtext);
 }
 
 ]]>
@@ -570,6 +472,52 @@ void printPO_birt(String ipo)
 	</div>
 </popup>
 
+<popup id="orderq_listo">
+	<div sclass="shadowbox" style="background:#B1EC32" width="600px">
+		<label value="Items order queue" style="font-weight:bold;font-size:12px" />
+		<separator height="3px" />
+		<hbox>
+			<textbox id="ordqsearch_tb" sclass="k9" />
+			<button label="Search / Load" sclass="k9mo" onClick="showOrderQueue(orderqlist_holder,ordqsearch_tb.getValue().trim())" />
+			<button id="ordq_remove_b" label="Removed selected" sclass="k9mo" onClick="orderqueue_doFunc(self.getId())" />
+		</hbox>
+		<separator height="3px" />
+		<div id="orderqlist_holder" />
+		<separator height="3px" />
+		<button label="Add selected to PR" sclass="k9mo" onClick="addQueueItem_toPO(orderqlist_holder,ORDERQUEUE_LB_ID,1)" />
+		<button label="Add to PR and remove from queue" sclass="k9mo" onClick="addQueueItem_toPO(orderqlist_holder,ORDERQUEUE_LB_ID,2)" />
+	</div>
+</popup>
+
+<popup id="orderq_addqty">
+	<div sclass="shadowbox" style="background:#B1EC32" width="450px">
+		<grid sclass="GridLayoutNoBorder">
+			<rows>
+				<row>
+					<label value="To order quantity" sclass="k9" />
+					<textbox id="ordqty_tb" sclass="k9" />
+				</row>
+				<row>
+					<label value="Reason" sclass="k9" />
+					<textbox id="ordq_reason_tb" sclass="k9" multiline="true" width="98%" height="60px" />
+				</row>
+			</rows>
+		</grid>
+		<separator height="3px" />
+		<button id="ordq_additem_b" label="Add to order queue" sclass="k9mo" onClick="orderqueue_doFunc(self.getId(), glob_sel_stkid, glob_sel_stockcode)" />
+		<button label="Clear" sclass="k9mo" onClick='ordqty_tb.setValue(""); ordq_reason_tb.setValue("");' />
+	</div>
+</popup>
+
+<popup id="showqueueitem_menu">
+	<div sclass="shadowbox" style="background:#B1EC32">
+		<vbox>
+			<button label="Get order queue items" sclass="k9mo" onClick="orderq_listo.open(self)" />
+			<button label="Add to order queue" sclass="k9mo" onClick="orderq_addqty.open(self)" />
+		</vbox>
+	</div>
+</popup>
+
 <style src="/real-world.css" />
 <style>
 	.GridLayoutNoBorder tr.z-row td.z-row-inner, tr.z-row .z-cell, div.z-grid
@@ -658,6 +606,7 @@ void printPO_birt(String ipo)
 				<hbox>
 					<button id="newpoitem_b" label="New item" sclass="k9mo" onClick="poItemsFunc(self.getId())" />
 					<button id="selmasterstock_b" label="Select stock name" sclass="k9mo" onClick="liststkmaster_pop.open(self)" />
+					<button label="Order queue items" sclass="k9mo" onClick="showqueueitem_menu.open(self)" />
 					<button id="chkdupitems_b" label="Check dups" sclass="k9mo" onClick="poItemsFunc(self.getId())" />
 					<button id="savepoitem_b" label="SAVE" sclass="k9mo" onClick="poItemsFunc(self.getId())" />
 					<separator width="5px" />
@@ -672,7 +621,15 @@ void printPO_birt(String ipo)
 			</div>
 		</hbox>
 	</div>
+
 	<separator height="3px" />
+	<div id="nagbar" style="${NAG_BAR_STYLE}">
+		<hbox>
+			<separator width="10px" />
+			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
+		</hbox>
+	</div>
+	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
 
 <zscript>
 <![CDATA[

@@ -416,6 +416,16 @@ void refreshPipes()
 ]]>
 </zscript>
 
+<popup id="showqueueitem_menu">
+	<div sclass="shadowbox" style="background:#B1EC32">
+		<vbox>
+			<button label="Get order queue items" sclass="k9mo" onClick="orderq_listo.open(self)" />
+			<button label="Add to order queue" sclass="k9mo" onClick="orderq_addqty.open(self)" />
+			<button id="notifprocure_b" label="Notify procurement" sclass="k9mo" onClick="orderqueue_doFunc(self.getId(), glob_sel_stkid, glob_sel_stockcode)" />
+		</vbox>
+	</div>
+</popup>
+
 <popup id="orderq_listo">
 	<div sclass="shadowbox" style="background:#B1EC32" width="600px">
 		<label value="Items order queue" style="font-weight:bold;font-size:12px" />
@@ -641,9 +651,8 @@ void refreshPipes()
 			</grid>
 			<separator height="3px" />
 			<hbox>
-				<button label="Add to order queue" sclass="k9mo" onClick="orderq_addqty.open(self)" />
-				<button label="View queue" sclass="k9mo" onClick="orderq_listo.open(self)" />
-				<button id="notifprocure_b" label="Notify procurement" sclass="k9mo" onClick="orderqueue_doFunc(self.getId(), glob_sel_stkid, glob_sel_stockcode)" />
+				<button label="TD: Print picked items" sclass="k9mo" />
+				<button label="Order queue items" sclass="k9mo" onClick="showqueueitem_menu.open(self)" />
 			</hbox>
 			<separator height="3px" />
 			<div id="obitems_holder" width="400px" />
@@ -672,10 +681,16 @@ void refreshPipes()
 					</vbox>
 				</hbox>
 			</div>
-
 		</hbox>
 	</div>
-
+	<separator height="3px" />
+	<div id="nagbar" style="${NAG_BAR_STYLE}">
+		<hbox>
+			<separator width="10px" />
+			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
+		</hbox>
+	</div>
+	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
 <zscript>
 <![CDATA[
 

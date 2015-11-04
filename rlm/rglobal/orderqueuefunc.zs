@@ -1,6 +1,8 @@
 // Order-queue management - temp_orderitems, to speed-up PR/PO creation
 // Remember 'em popups . Find them in outboundKanban_v1.zul
 
+ORDERQUEUE_LB_ID = "orderqueue_lb";
+
 /**
  * Order-queue functions : can be used in other modu - modularize it
  * Global vars req: glob_sel_stkid , glob_sel_stockcode
@@ -16,12 +18,14 @@ void orderqueue_doFunc(String iwhat, String istkid, String istockcode)
 
 	if(iwhat.equals("ordq_additem_b")) // order-queue add item
 	{
-		if(istkid.equals("")) { guihand.showMessageBox("Please double-click to select the stock-code.."); return; }
+		if(istkid.equals("")) { guihand.showMessageBox("Double-click to select the stock-code.."); return; }
 		qty = ordqty_tb.getValue().trim(); if(qty.equals("")) return;
 		iqty = 0; try { iqty = Integer.parseInt(qty); } catch (Exception e) {}
 		resn = ordq_reason_tb.getValue().trim();
 		sqlstm = "insert into temp_orderitems (stk_id,stockcode,datecreated,username,qty,reason) values " +
 		"(" + istkid + ",'" + istockcode + "','" + todaydate + "','" + unm + "'," + iqty.toString() + ",'" + resn + "');";
+
+		msgtext = istockcode + " added to order-queue..";
 	}
 
 	if(iwhat.equals("ordq_remove_b")) // remove selected order-queue items from db
@@ -55,23 +59,30 @@ void orderqueue_doFunc(String iwhat, String istkid, String istockcode)
 	{
 		sqlhand.rws_gpSqlExecuter(sqlstm);
 	}
+	if(!msgtext.equals(""))
+	{
+		putNagText(msgtext);
+	}
 }
 
 Object[] orderque_hds =
 {
 	new listboxHeaderWidthObj("No.",true,"60px"),
 	new listboxHeaderWidthObj("Dated",true,"70px"),
-	new listboxHeaderWidthObj("stkid",false,""),
+	new listboxHeaderWidthObj("stkid",false,""), // 2
 	new listboxHeaderWidthObj("StockCode",true,""),
 	new listboxHeaderWidthObj("Qty",true,"50px"),
 	new listboxHeaderWidthObj("Reason",true,""),
 	new listboxHeaderWidthObj("origid.",false,""), // 6
 };
+ORDQ_STKID = 2;
+ORDQ_STOCKCODE = 3;
+ORDQ_QTY = 4;
 ORDQ_ORIGID = 6;
 
 void showOrderQueue(Div iholder, String ist)
 {
-	Listbox newlb = lbhand.makeVWListbox_Width(iholder, orderque_hds, "orderqueue_lb", 3);
+	Listbox newlb = lbhand.makeVWListbox_Width(iholder, orderque_hds, ORDERQUEUE_LB_ID, 3);
 	esql = (!ist.equals("")) ? "and stockcode like '%" + ist + "%'" : "";
 
 	sqlstm = "select origid,stk_id,stockcode,qty,reason,datecreated from temp_orderitems where po_ref is null " + esql + " order by stockcode;";

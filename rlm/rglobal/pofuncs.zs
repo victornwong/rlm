@@ -268,3 +268,19 @@ void showStock_location(String istkid, Div iholder, String ilbid)
 	}
 	lbhand.setDoubleClick_ListItems(newlb, shwstkloca_doubclik);
 }
+
+/**
+ * Generate PO template using BIRT - can be used for other modu, remember the popup
+ * @param ipo : the PO
+ */
+void printPO_birt(String ipo)
+{
+	bfn = "rlm/purchaseOrder_v1.rptdesign";
+	thesrc = birtURL() + bfn + "&ponum=" + ipo + "&popref=" + PO_PREFIX;
+
+	if(poprintholder.getFellowIfAny("poprintframe") != null) poprintframe.setParent(null);
+	Iframe newiframe = new Iframe();
+	newiframe.setId("poprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
+	newiframe.setSrc(thesrc); newiframe.setParent(poprintholder);
+	poprintoutput.open(printpo_b);
+}
