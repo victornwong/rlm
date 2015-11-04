@@ -1,17 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?page id="rlmstkitm1"?>
 <zk>
-<zscript src="../rwglobal/rwglobaldefs.zs" />
-<zscript src="../rwglobal/rwsqlfuncs.zs" />
-<zscript src="../rwglobal/systemAudit.zs" />
-<zscript src="../rwglobal/uploadDocu_v1.zs" />
-<zscript src="../rwglobal/fc6_CustomerSelector.zs" />
-<zscript src="../rwglobal/jobNotes_funcs.zs" />
-<zscript src="../rwglobal/uploadedWorksheet_v1.zs" />
-<zscript src="../rwglobal/emailfuncs.zs" />
-<zscript src="./rglobal/rlmsql.zs" />
-<zscript src="./stockManf/stockmanfunc.zs" />
-<zscript src="./stockManf/stocklister.zs" />
+<zscript src="rglobal/rglobal.zs" />
+<zscript src="rglobal/formMaker_v1.zs" />
+<zscript src="rglobal/rlmsql.zs" />
+<zscript src="stockManf/stockmanfunc.zs" />
+<zscript src="stockManf/stocklister.zs" />
 <zscript>
 <![CDATA[
 MYTITLE = "Stock Items";
@@ -214,7 +208,7 @@ void itemFunc(String iwhat)
 				</row>
 				<row style="${NEWSTOCKITEM_BACKGROUND}">
 					<label value="Description" sclass="k9b" />
-					<textbox id="e_description_tb" sclass="k9" width="99%" />
+					<textbox id="e_description_tb" sclass="k9" width="99%" multiline="true" height="60px" />
 				</row>
 				<row style="${NEWSTOCKITEM_BACKGROUND}">
 					<separator />
@@ -283,7 +277,6 @@ void itemFunc(String iwhat)
 <div width="1000px" style="opacity: 0.8;">
 <panel id="${MYPANEL}" title="${MYTITLE} ${MYVERSION}" border="normal" collapsible="true" closable="true" >
 <panelchildren style="background:#455383">
-
 	<div sclass="shadowbox" style="background:#C7740D">
 		<hbox>
 			<button label="List items" sclass="k9mo" onClick="listout_pop.open(self)" />

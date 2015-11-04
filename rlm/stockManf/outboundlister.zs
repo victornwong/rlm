@@ -78,7 +78,7 @@ Listbox showOutboundItems(Object iob, Div iholder, String ilbid, int showtype, i
 		{
 			kabom.add("0");
 
-			// INEFFICIENT codes to get stock_code from stockmasterdetails - RECODE
+			// INEFFICIENT codes to get stock_code from stockmasterdetails - RECODE LATER
 			sr = gpWMS_FirstRow("select Stock_Code from StockMasterDetails where ID=" + stkid[i]);
 			sc = (sr == null) ? UNKNOWN_STRING : sr.get("Stock_Code");
 			kabom.add(sc);

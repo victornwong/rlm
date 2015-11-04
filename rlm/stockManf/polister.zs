@@ -6,7 +6,7 @@ LISTPOBACKGROUND = "background:#96BB1F";
 POSTAT_SUSPEND = "font-size:9px;background:#F82613";
 POSTAT_APPROVE = "font-size:9px;background:#47F07A";
 
-last_show_po = 0;
+last_show_po = 1;
 glob_sel_po = glob_sel_poapcode = glob_sel_pocustomer = glob_sel_po_status = "";
 
 void renumberPOlb(Listbox ilb)
@@ -166,7 +166,17 @@ Object[] digpoitemshds =
 	new listboxHeaderWidthObj("Stock code",true,""),
 	new listboxHeaderWidthObj("Description",true,""),
 	new listboxHeaderWidthObj("Qty",true,"60px"),
+	new listboxHeaderWidthObj("UPrice",false,"60px"),
+	new listboxHeaderWidthObj("exhrate",false,"60px"),
+	new listboxHeaderWidthObj("curcode",false,"60px"),
 };
+SML_POITEM_STKID = 0;
+SML_POITEM_STOCKCODE = 1;
+SML_POITEM_DESC = 2;
+SML_POITEM_QTY = 3;
+SML_POITEM_UPRICE = 4;
+SML_POITEM_EXCHANGERATE = 5;
+SML_POITEM_CURCODE = 6;
 
 class diggpoitemsdclick implements org.zkoss.zk.ui.event.EventListener
 {
@@ -175,7 +185,8 @@ class diggpoitemsdclick implements org.zkoss.zk.ui.event.EventListener
 		isel = event.getTarget();
 		try
 		{
-			diggPOitems_callback( lbhand.getListcellItemLabel(isel,0), lbhand.getListcellItemLabel(isel,1) );
+			//diggPOitems_callback( 
+			diggPOitems_callback(isel);
 		} catch (Exception e) {}
 	}
 }
@@ -188,12 +199,14 @@ void digloadPOitems(Div iholder, int ipo)
 {
 	Listbox newlb = lbhand.makeVWListbox_Width(iholder, digpoitemshds, "digpoitems_lb", 10);
 
-	sqlstm = "select m.description,m.quantity,m.stock_code," +
+	sqlstm = "select m.description,m.quantity,m.stock_code,unitprice," +
+	"(select exchange_rate from PurchaseRequisition where origid=" + ipo + ") as exhrate, " +
+	"(select curcode from PurchaseRequisition where origid=" + ipo + ") as cur_code," +
 	"(select stock_code from StockMasterDetails where ID=m.stock_code) as stockname from PurchaseReq_Items m where m.pr_parent_id=" + ipo.toString();
 	r = sqlhand.rws_gpSqlGetRows(sqlstm);
 	if(r.size() > 0)
 	{
-		String[] fl = { "stock_code","stockname","description","quantity" };
+		String[] fl = { "stock_code","stockname","description","quantity","unitprice","exhrate","cur_code" };
 		ArrayList kabom = new ArrayList();
 		for(d : r)
 		{
@@ -206,3 +219,4 @@ void digloadPOitems(Div iholder, int ipo)
 	}
 
 }
+

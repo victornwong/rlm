@@ -54,7 +54,7 @@ ISACTIVE_SUPPLIER_LOADING = ""; // set this in other modu to get active supplier
 
 glob_sel_supplierid = glob_sel_apcode ="";
 
-String[] pometafields = { "APCode","supplier_name","sup_address","sup_tel","sup_fax","sup_email","sup_contact","curcode" };
+String[] pometafields = { "APCode","supplier_name","sup_address","sup_tel","sup_fax","sup_email","sup_contact","curcode","exchange_rate" };
 glob_sel_poitem_obj = null;
 
 /**
@@ -328,8 +328,7 @@ void poFunc(String iwhat)
 	adminpop.close();
 	todaydate =  kiboo.todayISODateTimeString();
 	msgtext = sqlstm = sts = "";
-	unm = "tester";
-	try { unm = useraccessobj.username; } catch (Exception e) {}
+	unm = "tester"; try { unm = useraccessobj.username; } catch (Exception e) {}
 
 	if(iwhat.equals("newpo_b")) // insert new PO
 	{
@@ -342,9 +341,12 @@ void poFunc(String iwhat)
 		if(iwhat.equals("updpometa_b")) // update PO metadata
 		{
 			dt = ngfun.getString_fromUI(pometaboxes);
+			exhrate = 1.0;
+			try { exhrate = Float.parseFloat(dt[8]); } catch (Exception e) {}
 			sqlstm = "update PurchaseRequisition set APCode='" + dt[0] + "',supplier_name='" + dt[1] + "',sup_address='" + dt[2] + "'," +
-			"sup_tel='" + dt[3] + "',sup_fax='" + dt[4] + "',sup_email='" + dt[5] + "',sup_contact='" + dt[6] + "',curcode='" + dt[7] + "' " +
-			"where origid=" + glob_sel_po;
+			"sup_tel='" + dt[3] + "',sup_fax='" + dt[4] + "',sup_email='" + dt[5] + "',sup_contact='" + dt[6] + "'," +
+			"curcode='" + dt[7] + "', exchange_rate=" + exhrate.toString() +
+			" where origid=" + glob_sel_po;
 		}
 
 		if(iwhat.equals("delpo_b")) // delete PO
@@ -644,6 +646,10 @@ void printPO_birt(String ipo)
 							<label value="Currency" sclass="wbo" />
 							<textbox id="p_curcode_tb" sclass="k9" width="70%" />
 						</row>
+						<row style="${SUPP_FORM_STYLE}">
+							<label value="Exchange rate" sclass="wbo" />
+							<textbox id="p_exchange_rate_tb" sclass="k9" width="70%" />
+						</row>
 					</rows>
 				</grid>
 			</div>
@@ -674,7 +680,7 @@ void printPO_birt(String ipo)
 Object[] supplierinputs = { p_apcode_tb, p_supplier_name_tb, p_phone_tb, p_fax_tb, p_email_tb, p_cperson1_tb, p_curcode_tb };
 
 Object[] pometaboxes = { p_apcode_tb, p_supplier_name_tb, p_sup_address_tb, p_phone_tb, p_fax_tb, p_email_tb,
-	p_cperson1_tb, p_curcode_tb };
+	p_cperson1_tb, p_curcode_tb, p_exchange_rate_tb };
 
 fillStockMasterSelectorDropdowns(); // stocklister.zs
 

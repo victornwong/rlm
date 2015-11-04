@@ -6,6 +6,7 @@
 <zscript src="rglobal/rlmsql.zs" />
 <zscript src="rglobal/customerSelector.zs" />
 <zscript src="rglobal/stkoutfunc.zs" />
+<zscript src="rglobal/orderqueuefunc.zs" />
 <zscript src="stockManf/stocklister.zs" />
 <zscript src="stockManf/itemsfunc.zs" />
 <zscript src="stockManf/outboundlister.zs" />
@@ -415,6 +416,40 @@ void refreshPipes()
 ]]>
 </zscript>
 
+<popup id="orderq_listo">
+	<div sclass="shadowbox" style="background:#B1EC32" width="600px">
+		<label value="Items order queue" style="font-weight:bold;font-size:12px" />
+		<separator height="3px" />
+		<hbox>
+			<textbox id="ordqsearch_tb" sclass="k9" />
+			<button label="Search / Load" sclass="k9mo" onClick="showOrderQueue(orderqlist_holder,ordqsearch_tb.getValue().trim())" />
+			<button id="ordq_remove_b" label="Removed selected" sclass="k9mo" onClick="orderqueue_doFunc(self.getId())" />
+		</hbox>
+		<separator height="3px" />
+		<div id="orderqlist_holder" />
+	</div>
+</popup>
+
+<popup id="orderq_addqty">
+	<div sclass="shadowbox" style="background:#B1EC32" width="450px">
+		<grid sclass="GridLayoutNoBorder">
+			<rows>
+				<row>
+					<label value="To order quantity" sclass="k9" />
+					<textbox id="ordqty_tb" sclass="k9" />
+				</row>
+				<row>
+					<label value="Reason" sclass="k9" />
+					<textbox id="ordq_reason_tb" sclass="k9" multiline="true" width="98%" height="60px" />
+				</row>
+			</rows>
+		</grid>
+		<separator height="3px" />
+		<button id="ordq_additem_b" label="Add to order queue" sclass="k9mo" onClick="orderqueue_doFunc(self.getId(), glob_sel_stkid, glob_sel_stockcode)" />
+		<button label="Clear" sclass="k9mo" onClick='ordqty_tb.setValue(""); ordq_reason_tb.setValue("");' />
+	</div>
+</popup>
+
 <popup id="addbacklogpop">
 	<div sclass="shadowbox" style="background:#328CCD" width="650px">
 		<label style="color:#ffffff" value=":: Link Job" />
@@ -604,6 +639,13 @@ void refreshPipes()
 					</row>
 				</rows>
 			</grid>
+			<separator height="3px" />
+			<hbox>
+				<button label="Add to order queue" sclass="k9mo" onClick="orderq_addqty.open(self)" />
+				<button label="View queue" sclass="k9mo" onClick="orderq_listo.open(self)" />
+				<button id="notifprocure_b" label="Notify procurement" sclass="k9mo" onClick="orderqueue_doFunc(self.getId(), glob_sel_stkid, glob_sel_stockcode)" />
+			</hbox>
+			<separator height="3px" />
 			<div id="obitems_holder" width="400px" />
 			</vbox>
 

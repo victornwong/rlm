@@ -572,3 +572,27 @@ boolean checkListboxEmptyColumn(Div lbholder, String lbid, int icolumn)
 	}
 	return true;
 }
+
+/**
+ * Locate iwhat in ilb by icolumn - hilite and move listbox cursor to that position. Scan from bottom up - as moving to first item detected
+ * Can use for other modu
+ * @param ilb     the listbox to iterate
+ * @param icolumn column to check
+ * @param iwhat   what string to match
+ * @param istyle hilite style
+ */
+void locateShiftListbox(Listbox ilb, int icolumn, String iwhat, String istyle)
+{
+	if(ilb.getItemCount() == 0) return; // nothing in listbox, return je
+	ts = ilb.getItems().toArray();
+	tock = iwhat.trim().toUpperCase();
+	for(i=0;i<ts.length;i++)
+	{
+		ck = lbhand.getListcellItemLabel(ts[i],icolumn).trim().toUpperCase();
+		if(ck.indexOf(tock) != -1) // match something..
+		{
+			ts[i].setStyle(istyle);
+		}
+	}
+}
+

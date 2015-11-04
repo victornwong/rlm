@@ -6,6 +6,7 @@
 <zscript src="rglobal/rlmsql.zs" />
 <zscript src="rglobal/invtstockmaster.zs" />
 <zscript src="rglobal/supplierfunc.zs" />
+<zscript src="stockManf/inventorymanfunc.zs" />
 <zscript src="stockManf/stocklister.zs" />
 <zscript src="stockManf/polister.zs" />
 <zscript>
@@ -49,92 +50,8 @@ LIMIT_SUPPLIERS_LOADING = " limit 100"; // used in supplierfunc.zs
 ISACTIVE_SUPPLIER_LOADING = ""; // set this in other modu to get active supplier only: and IsActive=1
 
 glob_invt_stkid = glob_invt_stockcode = glob_invt_desc = "";
+glob_sel_item_po = "";
 items_need_update = false;
-
-/**
- * Locate iwhat in ilb by icolumn - hilite and move listbox cursor to that position. Scan from bottom up - as moving to first item detected
- * Can use for other modu
- * @param ilb     the listbox to iterate
- * @param icolumn column to check
- * @param iwhat   what string to match
- * @param istyle hilite style
- */
-void locateShiftListbox(Listbox ilb, int icolumn, String iwhat, String istyle)
-{
-	if(ilb.getItemCount() == 0) return; // nothing in listbox, return je
-	ts = ilb.getItems().toArray();
-	tock = iwhat.trim().toUpperCase();
-	for(i=0;i<ts.length;i++)
-	{
-		ck = lbhand.getListcellItemLabel(ts[i],icolumn).trim().toUpperCase();
-		if(ck.indexOf(tock) != -1) // match something..
-		{
-			ts[i].setStyle(istyle);
-		}
-	}
-}
-
-Object[] invtitemhds =
-{
-	new listboxHeaderWidthObj("Serial No.",true,""),
-	new listboxHeaderWidthObj("Qty",true,"80px"),
-	new listboxHeaderWidthObj("Loca/Bin",true,"100px"),
-	new listboxHeaderWidthObj("Stage",true,"100px"),
-	new listboxHeaderWidthObj("OutRefNo",true,"100px"),
-	new listboxHeaderWidthObj("OutRefDate",true,"100px"), // 5
-	new listboxHeaderWidthObj("LastPr",true,"80px"),
-	new listboxHeaderWidthObj("RefNo",true,"100px"),
-	new listboxHeaderWidthObj("RefDate",true,"80px"),
-	new listboxHeaderWidthObj("origid",false,""),
-};
-INVTITEM_STOCKCODE_POS = 0;
-INVTITEM_QTY_POS = 1;
-INVTITEM_LOCA_POS = 2;
-INVTITEM_STAGE_POS = 3;
-INVTITEM_ORIGID_POS = 9;
-
-/**
- * Show inventory things by stock-master ID passed
- * @param istkid : the stock-master ID
- */
-void showInventoryMeta(String istkid)
-{
-	Listbox newlb = lbhand.makeVWListbox_Width(invtitems_holder, invtitemhds, "inventoryitems_lb", 3);
-	sqlstm = "select origid,Itemcode,RefNo,RefDate,Balance,Bin,stage,LastPurchase,OutRefNo,OutRefDate from StockList where stk_id=" + istkid + " order by stage;";
-	r = sqlhand.rws_gpSqlGetRows(sqlstm);
-	if(r.size() == 0) return;
-	newlb.setRows(20); //newlb.setMold("paging");
-	newlb.setMultiple(true); newlb.setCheckmark(true); 
-	//newlb.addEventListener("onSelect", invtlist_clicker);
-
-	String[] fl = { "Itemcode","Balance","Bin","stage","OutRefNo","OutRefDate","LastPurchase","RefNo","RefDate", "origid" };
-	ArrayList kabom = new ArrayList();
-
-	for(d : r)
-	{
-		ngfun.popuListitems_Data(kabom,fl,d);
-		lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
-		kabom.clear();
-	}
-	//lbhand.setDoubleClick_ListItems(newlb, invtlist_dclicker);
-
-	items_need_update = false;
-}
-
-Object[] invthds =
-{
-	new listboxHeaderWidthObj("stk_id",false,""),
-	new listboxHeaderWidthObj("Stock code",true,""),
-	new listboxHeaderWidthObj("Description",true,""),
-	new listboxHeaderWidthObj("Qty",true,"80px"),
-	new listboxHeaderWidthObj("NEW",true,"80px"),
-	new listboxHeaderWidthObj("WIP",true,"80px"),
-	new listboxHeaderWidthObj("TRAN",true,"80px"),
-};
-INVT_STKID_POS = 0;
-INVT_STOCKCODE_POS = 1;
-INVT_DESC_POS = 2;
-INVT_QTY_POS = 3;
 
 /**
  * To set them global listbox selected item's vars to be used in other parts
@@ -145,67 +62,6 @@ void setGlobalInventoryLBvars(Object isel)
 	glob_invt_stkid = lbhand.getListcellItemLabel(isel,INVT_STKID_POS);
 	glob_invt_stockcode = lbhand.getListcellItemLabel(isel,INVT_STOCKCODE_POS);
 	glob_invt_desc = lbhand.getListcellItemLabel(isel,INVT_DESC_POS);
-}
-
-class invtclick implements org.zkoss.zk.ui.event.EventListener
-{
-	public void onEvent(Event event) throws UiException
-	{
-		isel = event.getReference();
-		setGlobalInventoryLBvars(isel);
-		showInventoryMeta(glob_invt_stkid);
-		workarea.setVisible(true);
-	}
-}
-invtlist_clicker = new invtclick();
-
-class invtdclick implements org.zkoss.zk.ui.event.EventListener
-{
-	public void onEvent(Event event) throws UiException
-	{
-		isel = event.getTarget();
-		try
-		{
-			setGlobalInventoryLBvars(isel);
-		} catch (Exception e) {}
-	}
-}
-invtlist_dclicker = new invtdclick();
-
-/**
- * Load inventory from StockList
-*/
-void loadInventory(int itype)
-{
-	st = kiboo.replaceSingleQuotes(ivt_searchtext_tb.getValue().trim());
-	Listbox newlb = lbhand.makeVWListbox_Width(inventoryholder, invthds, "inventory_lb", 3);
-
-	sqlstm = "select distinct i.stk_id, s.Stock_Code, s.Description, " +
-	"(select sum(Balance) from StockList where stk_id=i.stk_id) as totalqty," +
-	"(select sum(Balance) from StockList where stk_id=i.stk_id and stage='NEW') as newqty," +
-	"(select sum(Balance) from StockList where stk_id=i.stk_id and stage='WIP') as wipqty," +
-	"(select sum(Balance) from StockList where stk_id=i.stk_id and stage='TRAN') as tranqty " +
-	"from StockList i left join StockMasterDetails s on i.stk_id=s.ID ";
-
-	if(!st.equals(""))
-		sqlstm += "where s.stock_code like '%" + st + "%' or i.Itemcode like '%" + st + "%' or i.RefNo like '%" + st + "%' or " +
-		"i.OutRefNo like '%" + st + "%' or Bin like '%" + st + "%' ";
-
-	r = sqlhand.rws_gpSqlGetRows(sqlstm);
-	if(r.size() == 0) return;
-	newlb.setRows(20); newlb.setMold("paging"); // newlb.setMultiple(true); newlb.setCheckmark(true); 
-	newlb.addEventListener("onSelect", invtlist_clicker);
-
-	String[] fl = { "stk_id","Stock_Code","Description","totalqty","newqty","wipqty","tranqty" };
-	ArrayList kabom = new ArrayList();
-
-	for(d : r)
-	{
-		ngfun.popuListitems_Data(kabom,fl,d);
-		lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
-		kabom.clear();
-	}
-	//lbhand.setDoubleClick_ListItems(newlb, invtlist_dclicker);
 }
 
 /**
@@ -307,35 +163,39 @@ void inventoryFunc(String iwhat)
 	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
 }
 
-/**
- * Save inventory items - uses listbox invtitemhds.origid column for updating
- * Others(refno,outrefno,etc) will be updated dynamically by other modu
- * 13/09/2015: save quantity(StockList.Balance), location(StockList.Bin)
- * @param ilb : listbox to iterate
- */
-void saveInventoryItems(Listbox ilb)
-{
-	if(ilb.getItemCount() == 0) return;
-	ts = ilb.getSelectedItems().toArray();
-	Sql sql = wms_Sql();
-	Connection thecon = sql.getConnection();
-	PreparedStatement pstmt = thecon.prepareStatement("update StockList set Balance=?, Bin=? where origid=?");
-	for(i=0; i<ts.length; i++)
-	{
-		oid = lbhand.getListcellItemLabel(ts[i],INVTITEM_ORIGID_POS);
-		if(!oid.equals("")) // need - stocklist.origid
-		{
-			loca = lbhand.getListcellItemLabel(ts[i],INVTITEM_LOCA_POS);
-			qty = lbhand.getListcellItemLabel(ts[i],INVTITEM_QTY_POS);
 
-			pstmt.setInt(1,Integer.parseInt(qty));
-			pstmt.setString(2,loca);
-			pstmt.setInt(3,Integer.parseInt(oid));
-			pstmt.addBatch();
-		}
-	}
-	pstmt.executeBatch(); pstmt.close();
-	sql.close();
+/**
+ * Call-back from digloadPOitems listbox -> digpoitems_dclick onSelect
+ * @param isel list-item obj
+ */
+void diggPOitems_callback(Object isel)
+{}
+
+/**
+ * Inventory per-item onSelect call-back - refer to inventorymanfunc.showInventoryMeta()
+ * @param isel list-item
+ */
+void inventory_peritem_Callback(Object isel)
+{
+	glob_sel_item_po = lbhand.getListcellItemLabel(isel,INVTITEM_REFNO_POS);
+}
+
+void viewPO_small(String ipo)
+{
+	kpo = ""; try { kpo = ipo.substring( PO_PREFIX.length(), ipo.length() ); } catch (Exception e) { return; } // extract PO voucher no.
+	r = getPurchaseReqRec(kpo);
+	if(r == null) return;
+
+	kwin = ngfun.vMakeWindow(windowsholder,ipo, "1", "center", "500px", "");
+
+	smy = "Vendor: " + r.get("supplier_name") +
+	"\nAPCODE: " + kiboo.checkNullString(r.get("APCode")) +
+	"\nDated: " + kiboo.dtf2.format(r.get("datecreated")) + " Approved: " + ((r.get("approvedate") != null) ? kiboo.dtf2.format(r.get("approvedate")) : "-") +
+	"\nNotes: " + kiboo.checkNullString(r.get("notes"));
+
+	itmh = new Div(); itmh.setParent(kwin); itmh.setSclass("shadowbox"); itmh.setStyle("background:#ED400E");
+	kk = ngfun.gpMakeLabel(itmh,"",smy,""); kk.setMultiline(true); kk.setStyle("color:#ffffff");
+	digloadPOitems(itmh, Integer.parseInt(kpo)); // polister.zs
 }
 
 ]]>
@@ -499,12 +359,14 @@ void saveInventoryItems(Listbox ilb)
 			<button id="upditems_b" label="Update" sclass="k9mo" onClick="inventoryFunc(self.getId())" />
 			<textbox id="itemcode_tb" sclass="k9" />
 			<button id="finditemcode_b" label="Find item-code" sclass="k9mo" onClick="inventoryFunc(self.getId())" />
+			<button label="View PO" sclass="k9mo" onClick="viewPO_small(glob_sel_item_po)" />
 			<button label="Print location label" sclass="k9mo" />
 		</hbox>
 		<separator height="3px" />
 		<div id="invtitems_holder" />
 	</div>
 
+	<div id="windowsholder" />
 <zscript>
 <![CDATA[
 
@@ -525,4 +387,3 @@ fillStockMasterSelectorDropdowns(); // stocklister.zs
 </panel>
 </div>
 </zk>
-

@@ -36,6 +36,9 @@ WOSTAGE_TRANS = "TRANSIT";
 WOSTAGE_DONE = "DONE";
 WOSTAGE_KIV = "KIV";
 
+STKIN_LOCATION_LABEL = "rlm/stockidlabel_v1.rptdesign";
+
+
 BIRT_WEBVIEWER_SHORT = "/birt/frameset?__report=";
 EXTERNAL_BIRTVIEWER = "http://192.168.130.198:8080/BIRT/frameset?__report=";
 
