@@ -72,7 +72,7 @@ ISACTIVE_SUPPLIER_LOADING = ""; // set this in other modu to get active supplier
 	.wbo { font-size:9px;color:#ffffff;font-weight:bold }
 </style>
 
-<div width="1000px" style="opacity: 0.8;" >
+<div width="${PANEL_WIDTH}" style="opacity: 0.8;" >
 <panel id="${MYPANEL}" title="${MYTITLE} ${MYVERSION}" border="normal" collapsible="true" closable="true" >
 <panelchildren style="background:#0C203E">
 	<div sclass="shadowbox" style="background:#6991B8">

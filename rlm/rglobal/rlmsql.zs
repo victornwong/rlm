@@ -11,6 +11,10 @@ import java.util.*;
 import java.text.*;
 import org.victor.*;
 
+/**
+ * Make sure this is ported properly, many other funcs uses it
+ * @return [description]
+ */
 Sql wms_Sql()
 {
 	String dbstring = "jdbc:mysql://localhost:3306/wms";
@@ -106,6 +110,19 @@ Object getOutboundRec(String iwhat)
 	return sqlhand.rws_gpSqlFirstRow(sqlstm);
 }
 
+/**
+ * Get tblStockOutMaster.stage
+ * @param  iob stkout voucher no.
+ * @return     stage
+ */
+String getStkout_stage(String iob)
+{
+	sqlstm = "select stage from tblStockOutMaster where Id=" + iob;
+	r = sqlhand.rws_gpSqlFirstRow(sqlstm);
+	return (r == null) ? "" : kiboo.checkNullString(r.get("stage"));
+}
+
+
 Object getCustomer_Rec(String iwhat)
 {
 	sqlstm = "select * from Customer where Id=" + iwhat;
@@ -118,6 +135,12 @@ String getStockMaster_descriptionById(String istkid)
 	sqlstm = "select Description from StockMasterDetails where ID=" + istkid;
 	r = sqlhand.rws_gpSqlFirstRow(sqlstm);
 	try { return kiboo.checkNullString( r.get("Description") ); } catch (Exception e) { return ""; }
+}
+
+Object getDispatch_rec(String iwhat)
+{
+	sqlstm = "select * from pickupdisp where origid=" + iwhat;
+	return sqlhand.rws_gpSqlFirstRow(sqlstm);
 }
 
 /**

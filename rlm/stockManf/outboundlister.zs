@@ -11,6 +11,8 @@ Object[] outbitemshds =
 	new listboxHeaderWidthObj("Qty",true,"50px"),
 	new listboxHeaderWidthObj("U/Price",true,"70px"),
 	new listboxHeaderWidthObj("SubTotal",true,"70px"),
+	new listboxHeaderWidthObj("Struct",true,"70px"),
+
 };
 
 Object[] outbitems_noprice_hds =
@@ -22,6 +24,7 @@ Object[] outbitems_noprice_hds =
 	new listboxHeaderWidthObj("Qty",true,"50px"),
 	new listboxHeaderWidthObj("U/Price",false,""),
 	new listboxHeaderWidthObj("SubTotal",false,""),
+	new listboxHeaderWidthObj("Struct",true,"70px"),
 };
 
 OBITM_STKCODE_POS = 1;
@@ -30,6 +33,7 @@ OBITM_STKID_POS = 3;
 OBITM_QTY_POS = 4;
 OBITM_UPRICE_POS = 5;
 OBITM_SUBTOT_POS = 6;
+OBITM_STRUCT_POS = 7;
 
 class outitmdlcick implements org.zkoss.zk.ui.event.EventListener
 {
@@ -86,6 +90,7 @@ Listbox showOutboundItems(Object iob, Div iholder, String ilbid, int showtype, i
 			kabom.add(desc[i]);
 			kabom.add(stkid[i]); kabom.add(qty[i]); kabom.add(uprice[i]);
 			kabom.add("0");
+			kabom.add(getStockMasterStruct(stkid[i])); // inventorymanfunc.zs
 			lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
 			kabom.clear();
 			itmcount++;
@@ -128,11 +133,7 @@ class outbclicker implements org.zkoss.zk.ui.event.EventListener
 {
 	public void onEvent(Event event) throws UiException
 	{
-		isel = event.getReference();
-		glob_sel_stkout = lbhand.getListcellItemLabel(isel,OUTB_ORIGID_POS);
-		glob_stkout_status = lbhand.getListcellItemLabel(isel,OUTB_STATUS_POS);
-		glob_stkout_stage = lbhand.getListcellItemLabel(isel,OUTB_STAGE_POS);
-		showOutboundMeta(glob_sel_stkout);
+		outbound_CallBack(event.getReference());
 	}
 }
 outbd_cliker = new outbclicker();

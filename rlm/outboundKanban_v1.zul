@@ -7,6 +7,7 @@
 <zscript src="rglobal/customerSelector.zs" />
 <zscript src="rglobal/stkoutfunc.zs" />
 <zscript src="rglobal/orderqueuefunc.zs" />
+<zscript src="stockManf/inventorymanfunc.zs" />
 <zscript src="stockManf/stocklister.zs" />
 <zscript src="stockManf/itemsfunc.zs" />
 <zscript src="stockManf/outboundlister.zs" />
@@ -71,8 +72,19 @@ SUPER_DUE_STYLE = "background:#F42A0F"; // redish
 
 public Object contextSelectedRow = whopSelectedRow = glob_sel_outitemobj = itemcode_sel_obj = null;
 glob_sel_stockcode = glob_sel_stkid = glob_sel_outbound = "";
+glob_sel_box_stage = "";
 
 //kanbClass kanb = new kanbClass();
+
+/**
+ * Toggle work-area buttons, scan serial numbers and etc
+ * @param iwhat : disabled true/false
+ */
+void toggWorkarea_butts(boolean iwhat)
+{
+	Object[] kbt = { scanitems_tb,capitemcode_b,chkdupscan_b,chkstkcode_b,saveobitems_b,removeitems_b,upditem_b };
+	massDisableComponents(kbt,iwhat);
+}
 
 void pipeDrop(DropEvent event, Object droped)
 {
@@ -103,16 +115,16 @@ void pipeDrop(DropEvent event, Object droped)
 			}
 		}
 	}
-	//alert(dragged + " :: " + droped + " :: " + findgrd + " :: " + findrws);
+	//putNagText(dragged + " :: " + droped + " :: " + findgrd + " :: " + findrws);
 
 	if(findrws != null)
 	{
-		kx = dragged.getChildren().toArray();
 		/*
-		if(findrws.getId().equals("d_lostbin")) // strike-out quotation if dragged to lost-bin
-			kx[1].setStyle( kx[1].getStyle() + ";text-decoration:line-through");
-		else
-			kx[1].setStyle( "font-size:9px" );
+			kx = dragged.getChildren().toArray();
+			if(findrws.getId().equals("d_lostbin")) // strike-out quotation if dragged to lost-bin
+				kx[1].setStyle( kx[1].getStyle() + ";text-decoration:line-through");
+			else
+				kx[1].setStyle( "font-size:9px" );
 		*/
 		if(updatepipes_callBack(dragged,findrws))
 			dragged.setParent(findrws); // actually moving
@@ -139,65 +151,71 @@ String getVoucherIdfromGrid(Object igrd)
  */
 boolean updatepipes_callBack(Object iobj, Object idropto)
 {
-	unm = "tester";
-	try { unm = useraccessobj.username; } catch (Exception e) {}
+	unm = "tester"; try { unm = useraccessobj.username; } catch (Exception e) {}
 	retval = true;
 	tgrd = iobj.getChildren().get(0); // hard-coded for WH outbound orders to get Grid
 	drpipe = idropto.getId(); // get pipe's status string to be used to update database - see the HashMap below
+	drpipe_stage = glob_PipeStatus.get(drpipe);
 
 	ovn = getVoucherIdfromGrid(tgrd);
 	ostageobj = tgrd.getChildren().get(0).getChildren().get(0).getChildren().get(2); // hard-coded get original stage LABEL object
 	ostage = tgrd.getChildren().get(0).getChildren().get(0).getChildren().get(2).getValue(); // hard-coded get original stage
-	ostageuserobj = tgrd.getChildren().get(0).getChildren().get(2).getChildren().get(1); // hard-coded get stage-user/handler LABEL object
+	orderrefobj = tgrd.getChildren().get(0).getChildren().get(2).getChildren().get(1); // hard-coded get order-reference LABEL object
+	handlerobj = tgrd.getChildren().get(0).getChildren().get(3).getChildren().get(0);
 
-	if(ostage.equals("DONE")) // already DONE voucher when moved, need extra handling . TODO
+	if(drpipe_stage.equals(ostage)) return false; // drop-to stage = original stage, do nothing
+
+	//alert(ostage + " :: " + drpipe_stage);
+
+	qtydifference = 0;
+
+	if(ostage.equals("DONE")) // moving a DONE order to un-done
 	{
-		alert("voucher already done.. why do you want to move it?");
+		// TODO make a lookup to hold users who can move DONE stkout to other stage
+		if(useraccessobj.accesslevel == 9) // only ADMIN can do this for now
+		{
+			if(Messagebox.show("Moving STKOUT already DONE will de-arrange the inventory..", "Are you sure?",
+				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return false;
+
+			qtydifference = 1; // assuming serialized inventory, either 1 or 0
+		}
+		else
+		{
+			guihand.showMessageBox("Only ADMIN can un-DONE STKOUT");
+			return false; 
+		}
+	}
+
+	if(drpipe_stage.equals("DONE")) // dropping order to DONE - minus from Balance
+	{
+		if(Messagebox.show("Please double-check all items for this order, inventory will be posted ", "Are you sure?",
+			Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+		qtydifference = -1;
 	}
 
 	ostageobj.setValue(glob_PipeStatus.get(drpipe)); // set original-stage LABEL
-	ostageuserobj.setValue(unm);
+	handlerobj.setValue("Handler: " + unm);
 
-	updateInventory_movement(ovn,glob_PipeStatus.get(drpipe));
+	updateInventory_movement(ovn,glob_PipeStatus.get(drpipe),qtydifference);
 	//alert(ovn + " :: " + glob_PipeStatus.get(drpipe) + " :: " + ostage);
 	return retval;
 }
 
 /**
- * [updateInventory_movement description]
- * @param ioid   tblStockOutMaster.Id
- * @param istage set to which stage
+ * [kancard_callBack description]
+ * @param iobj [description]
  */
-void updateInventory_movement(String ioid, String istage)
-{
-	updmove = true;
-	today = kiboo.todayISODateTimeString();
-	unm = "tester";
-	try { unm = useraccessobj.username; } catch (Exception e) {}
-	stkoutref = STKOUT_PREFIX+ioid; // STKOUT-id for StockList.OutRefNo
-
-	if(istage.equals("DONE")) // moving stkout to DONE, need extra handling -- TODO
-	{
-		if(Messagebox.show("Please double-check all items for this order, inventory will be posted ", "Are you sure?",
-			Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
-	}
-
-	if(updmove)
-	{
-		sqlstm = "update tblStockOutMaster set stage='" + istage + "', stage_user='" + unm + "', stage_date='" + today + "' where Id=" + ioid;
-		sqlhand.rws_gpSqlExecuter(sqlstm);
-		
-		sqlstm = "update StockList set stage='" + istage + "', OutRefNo='" + stkoutref + "', OutRefDate='" + today + "' where ItemCode in " +
-		"(SELECT StockCode FROM tblStockOutDetail WHERE parent_id=" + ioid + ");";
-		sqlhand.rws_gpSqlExecuter(sqlstm); // update inventory if serials available in StockList
-	}
-}
-
 void kancard_callBack(Object iobj)
 {
 	blindTings_withTitle(blindbutt,kanboard_thing,blindlabel);
 
 	tgrd = iobj.getChildren().get(0); // hard-coded to get GRID
+	ostage = tgrd.getChildren().get(0).getChildren().get(0).getChildren().get(2).getValue(); // hard-coded get original stage
+	glob_sel_box_stage = ostage; // save for later usage
+
+	toggWorkarea_butts( (ostage.equals("DONE")) ? true : false ); // if stkout already DONE, disable 'em work-area butts
+
 	glob_sel_outbound = getVoucherIdfromGrid(tgrd);
 	c_voucherno.setValue(STKOUT_PREFIX + " " + glob_sel_outbound);
 
@@ -254,15 +272,18 @@ void populateOutbounds()
 	for(d : r)
 	{
 		gridclass = "";
+		normalgridstyle = NORMAL_DUE_STYLE;
 		gridstyle = NORMAL_DUE_STYLE;
 
 		dydff = calcDayDiff(d.get("strDate"),today);
 		if(dydff >= MED_DUE && dydff < OVER_DUE) gridstyle = MED_DUE_STYLE;
 		if(dydff >= OVER_DUE && dydff < SUPER_DUE) gridstyle = OVER_DUE_STYLE;
-		if(dydff >= SUPER_DUE) { gridstyle = SUPER_DUE_STYLE; gridclass = "blink"; }
+		if(dydff >= SUPER_DUE) { gridstyle = SUPER_DUE_STYLE; gridclass = ""; }
 
 		ngrid = new Grid(); ngrid.setSclass("GridLayoutNoBorder");
 		crows = new Rows(); crows.setParent(ngrid);
+
+		// TODO messy-codes here, need to optimize
 
 		crow = new org.zkoss.zul.Row(); crow.setStyle(gridstyle); crow.setParent(crows); crow.setSclass(gridclass);
 		ngfun.gpMakeLabel(crow,"",STKOUT_PREFIX + " " + d.get("Id").toString(),styl);
@@ -270,14 +291,14 @@ void populateOutbounds()
 		ngfun.gpMakeLabel(crow,"","Date: " + d.get("strDate").toString(),styl);
 		ngfun.gpMakeLabel(crow,"",d.get("stage"),styl).setVisible(false); // hidden original stage
 
-		crow = new org.zkoss.zul.Row(); crow.setSpans("3"); crow.setStyle(gridstyle); crow.setParent(crows);
+		crow = new org.zkoss.zul.Row(); crow.setSpans("3"); crow.setParent(crows); crow.setStyle(normalgridstyle); 
 		k = ngfun.gpMakeLabel(crow,"",d.get("customer_name"),"font-size:9px"); k.setSclass("k9mo");
 
-		crow = new org.zkoss.zul.Row(); crow.setSpans("1,2"); crow.setStyle(gridstyle); crow.setParent(crows);
+		crow = new org.zkoss.zul.Row(); crow.setSpans("1,2"); crow.setParent(crows); crow.setStyle(normalgridstyle);
 		ngfun.gpMakeLabel(crow,"","Type: " + d.get("order_type"),"font-size:9px");
-		ngfun.gpMakeLabel(crow,"","From: " + kiboo.checkNullString(d.get("WorksOrder")),"font-size:9px");
+		ngfun.gpMakeLabel(crow,"","OrdRef: " + kiboo.checkNullString(d.get("WorksOrder")),"font-size:9px");
 
-		crow = new org.zkoss.zul.Row(); crow.setSpans("3"); crow.setStyle(gridstyle); crow.setParent(crows);
+		crow = new org.zkoss.zul.Row(); crow.setSpans("3"); crow.setParent(crows); crow.setStyle(normalgridstyle);
 		ngfun.gpMakeLabel(crow,"","Handler: " + kiboo.checkNullString(d.get("stage_user")),"font-size:9px");
 
 		/*
@@ -344,7 +365,8 @@ void funcDo(String iwhat)
 	{
 		if(scanitmlb.getItemCount() > 0)
 		{
-			saveOutboundScanItems(glob_sel_outbound,glob_sel_stkid,scanitmlb);
+			saveOutboundScanItems(glob_sel_outbound,glob_sel_stkid,scanitmlb,glob_sel_box_stage);
+			putNagText("Picked items saved into database..");
 		}
 	}
 
@@ -355,41 +377,6 @@ void funcDo(String iwhat)
 		//try { fv = Float.parseFloat( i_cost_tb.getValue().trim() ); lbhand.setListcellItemLabel(itemcode_sel_obj,ITEM_COST_POS,fv.toString()); } catch (Exception e) {}
 		//try { fv = kiboo.replaceSingleQuotes( i_bin_tb.getValue().trim() ); lbhand.setListcellItemLabel(itemcode_sel_obj,ITEM_LOCA_POS,fv); } catch (Exception e) {}
 	}
-}
-
-/**
- * Remove scan-items from listbox, if got origid, remove from database
- * knockoff from rlmsql.removeItemcodes()
- * @param iob [description]
- * @param ilb [description]
- */
-void removeScanItems(String iob, Listbox ilb)
-{
-	if(ilb.getItemCount() == 0) return;
-	ts = ilb.getSelectedItems().toArray();
-
-	if(Messagebox.show("Remove all the selected items..", "Are you sure?",
-		Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
-
-	Sql sql = wms_Sql();
-	Connection thecon = sql.getConnection();
-	PreparedStatement pstmt = thecon.prepareStatement("delete from tblStockOutDetail where Id=?;");
-
-	for(i=0;i<ts.length;i++)
-	{
-		origid = lbhand.getListcellItemLabel(ts[i],ITEM_ORIGID_POS);
-		if(!origid.equals("0")) // scan-item is from database, remove it too
-		{
-			pstmt.setInt(1,Integer.parseInt(origid));
-			pstmt.addBatch();
-		}
-		ts[i].setParent(null);
-	}
-
-	pstmt.executeBatch(); pstmt.close();
-	sql.close();
-
-	renumberListbox(ilb,0,1,true);
 }
 
 /**
@@ -409,9 +396,9 @@ void refreshPipes()
 			chd[c].setParent(null);
 		}
 	}
-
 	populateOutbounds();
 }
+
 
 ]]>
 </zscript>
@@ -528,6 +515,33 @@ void refreshPipes()
 	</div>
 </popup>
 
+<popup id="listdone_pop">
+	<div sclass="shadowbox" style="${NEWSTOCKITEM_BACKGROUND}" width="600px" >
+		<grid sclass="GridLayoutNoBorder">
+			<rows>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Done from" sclass="wbo" />
+					<datebox id="stkout_startdate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+					<label value="till" sclass="wbo" />
+					<datebox id="stkout_enddate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}" spans="1,2,1">
+					<label value="Search" sclass="wbo" />
+					<textbox id="stkout_searhtxt_tb" sclass="k9" width="99%" />
+					<button label="Load / Find" sclass="k9mo" onClick="" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}" spans="1,2,1">
+					<label value="STKOUT" sclass="wbo" />
+					<textbox id="stkout_num_tb" sclass="k9" width="60%" />
+					<button label="by STKOUT only" sclass="k9mo" onClick="" />
+				</row>
+			</rows>
+		</grid>
+		<separator height="3px" />
+		<div id="stkoutlist_holder" />
+	</div>
+</popup>
+
 <style src="/real-world.css" />
 <style>
 	.GridLayoutNoBorder tr.z-row td.z-row-inner, tr.z-row .z-cell, div.z-grid
@@ -548,6 +562,7 @@ void refreshPipes()
 		<label id="blindlabel" value="Show backlogs board" style="font-weight:bold;color:#ffffff" visible="false" />
 		<separator width="10px" />
 		<button id="refreshpipes_b" sclass="k9mo" label="Refresh" onClick="refreshPipes()" />
+		<button label="List DONEs" sclass="k9mo" onClick="listdone_pop.open(self)" visible="false" />
 	</hbox>
 
 	<separator height="5px" bar="true" />
@@ -651,7 +666,8 @@ void refreshPipes()
 			</grid>
 			<separator height="3px" />
 			<hbox>
-				<button label="TD: Print picked items" sclass="k9mo" />
+				<button label="TODO: Show items location" sclass="k9mo" />
+				<button label="TODO: Print picked items" sclass="k9mo" />
 				<button label="Order queue items" sclass="k9mo" onClick="showqueueitem_menu.open(self)" />
 			</hbox>
 			<separator height="3px" />
@@ -683,6 +699,7 @@ void refreshPipes()
 			</div>
 		</hbox>
 	</div>
+
 	<separator height="3px" />
 	<div id="nagbar" style="${NAG_BAR_STYLE}">
 		<hbox>

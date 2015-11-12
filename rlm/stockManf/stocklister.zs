@@ -2,6 +2,8 @@
  * Stock master lister things - can be used by other modu with some modif
  */
 
+stockmaster_lister_bread = ""; // used by other modu that wants to show the stock-master structure (cat->grp->cls)
+
 void fillStockMasterSelectorDropdowns()
 {
 	fillListbox_uniqField("StockMasterDetails","Stock_Cat", m_stock_cat_lb );
@@ -11,18 +13,21 @@ void fillStockMasterSelectorDropdowns()
 
 Object[] stkitemshds =
 {
-	new listboxHeaderWidthObj("Stock-code",true,""),
+	new listboxHeaderWidthObj("StockCode",true,""),
 	new listboxHeaderWidthObj("Description",true,""),
 	new listboxHeaderWidthObj("Category",true,""),
 	new listboxHeaderWidthObj("Group",true,""),
 	new listboxHeaderWidthObj("Class",true,""),
 	new listboxHeaderWidthObj("Entry",true,""), // 5
 	new listboxHeaderWidthObj("Act",false,""),
-	new listboxHeaderWidthObj("id",false,""), // 7
+	new listboxHeaderWidthObj("STKID",true,""), // 7
 	new listboxHeaderWidthObj("Avail",true,"50px"),
-
 };
+ITM_STOCKCODE = 0; ITM_DESCRIPTION = 1;
+ITM_CATEGORY = 2; ITM_GROUP = 3; ITM_CLASS = 4;
+ITM_ENTRYDATE = 5; ITM_ACTIVEFLAG = 6;
 ITM_ID = 7;
+ITM_AVAILABLE = 8;
 
 /**
  * onSelect for stock_items_lb
@@ -32,6 +37,8 @@ class stkitemclik implements org.zkoss.zk.ui.event.EventListener
 {
 	public void onEvent(Event event) throws UiException
 	{
+		try
+		{
 		isel = event.getReference();
 		glob_sel_stock_code = lbhand.getListcellItemLabel(isel,0);
 		glob_sel_description = lbhand.getListcellItemLabel(isel,1);
@@ -41,6 +48,7 @@ class stkitemclik implements org.zkoss.zk.ui.event.EventListener
 		glob_sel_id = lbhand.getListcellItemLabel(isel,ITM_ID);
 
 		stockItemListbox_callback(isel);
+		} catch (Exception e) {}
 	}
 }
 stockitemclicker = new stkitemclik();
@@ -49,9 +57,9 @@ class stkitemdoubelclik implements org.zkoss.zk.ui.event.EventListener
 {
 	public void onEvent(Event event) throws UiException
 	{
-		isel = event.getTarget();
 		try
 		{
+			isel = event.getTarget();
 			glob_sel_stock_code = lbhand.getListcellItemLabel(isel,0);
 			glob_sel_description = lbhand.getListcellItemLabel(isel,1);
 			glob_sel_stock_cat = lbhand.getListcellItemLabel(isel,2);
@@ -87,7 +95,6 @@ void listStockItems(int itype)
 	sqlstm = "select sm.Stock_Code,sm.Description,sm.Stock_Cat,sm.GroupCode,sm.ClassCode,sm.EntryDate,sm.ID,sm.IsActive," +
 	"(select sum(Balance) from StockList where stk_id=sm.ID and stage='NEW') as available from StockMasterDetails sm ";
 	wherestr = "where ";
-
 	stkcat = "";
 	try { stkcat = kiboo.replaceSingleQuotes(m_stock_cat_lb.getSelectedItem().getLabel()); } catch (Exception e) {}
 	grpcode = "";
@@ -104,14 +111,18 @@ void listStockItems(int itype)
 	{
 		case 1: // by stock-cat
 			wherestr += lstn[0] + "='" + stkcat + "' ";
+			stockmaster_lister_bread = stkcat;
+
 			break;
 
 		case 2: // by group-code
 			wherestr += lstn[0] + "='" + stkcat + "' and " + lstn[1] + "='" + grpcode + "' ";
+			stockmaster_lister_bread = stkcat + " > " + grpcode;
 			break;
 
 		case 3: // by class-code
 			wherestr += lstn[0] + "='" + stkcat + "' and " + lstn[1] + "='" + grpcode + "' and " + lstn[2] + "='" + clscode + "'";
+			stockmaster_lister_bread = stkcat + " > " + grpcode + " > " + clscode;
 			break;			
 
 		case 4: // by search-text or just dump everything -- need to limit

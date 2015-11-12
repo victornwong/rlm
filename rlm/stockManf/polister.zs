@@ -217,6 +217,27 @@ void digloadPOitems(Div iholder, int ipo)
 		//renumberListbox(newlb, 0, 1, true);
 		lbhand.setDoubleClick_ListItems(newlb, digpoitems_dclick);
 	}
+}
 
+/**
+ * Show small-window - PO details w/o unit-price
+ * @param ipo : the selected PO no.
+ */
+void viewPO_small(String ipo)
+{
+	kpo = ""; try { kpo = ipo.substring( PO_PREFIX.length(), ipo.length() ); } catch (Exception e) { return; } // extract PO voucher no.
+	r = getPurchaseReqRec(kpo);
+	if(r == null) return;
+
+	kwin = ngfun.vMakeWindow(windowsholder,ipo, "1", "center", "500px", "");
+
+	smy = "Vendor: " + r.get("supplier_name") +
+	"\nAPCODE: " + kiboo.checkNullString(r.get("APCode")) +
+	"\nDated: " + kiboo.dtf2.format(r.get("datecreated")) + " Approved: " + ((r.get("approvedate") != null) ? kiboo.dtf2.format(r.get("approvedate")) : "-") +
+	"\nNotes: " + kiboo.checkNullString(r.get("notes"));
+
+	itmh = new Div(); itmh.setParent(kwin); itmh.setSclass("shadowbox"); itmh.setStyle("background:#ED400E");
+	kk = ngfun.gpMakeLabel(itmh,"",smy,""); kk.setMultiline(true); kk.setStyle("color:#ffffff");
+	digloadPOitems(itmh, Integer.parseInt(kpo)); // polister.zs
 }
 

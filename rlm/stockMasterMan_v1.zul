@@ -39,12 +39,14 @@ sechand = new SecurityFuncs();
 
 myincludeid = Executions.getCurrent().getParameter("myid");
 useraccessobj = sechand.getUserAccessObject();
+try {
+useraccessobj = sechand.getUserAccessObject();
 //if(useraccessobj == null) Executions.sendRedirect(MAINLOGIN_PAGE);
+} catch (Exception e) {}
 
 kiboo = new Generals(); sqlhand = new SqlFuncs(); lbhand = new ListboxHandler();
 guihand = new GuiFuncs(); luhand = new LookupFuncs(); dmshand = new DMSFuncs();
 gridhand = new GridHandler(); ngfun = new NGfuncs(); rwsqlfun = new RWMS_sql();
-
 
 last_show_stockitems = 0;
 
@@ -230,22 +232,22 @@ void itemFunc(String iwhat)
 				<row style="${NEWSTOCKITEM_BACKGROUND}">
 					<label value="Category" sclass="wbo" />
 					<listbox id="m_stock_cat_lb" sclass="k9" mold="select" />
-					<button label="by category" sclass="k9mo" onClick="listout_pop.close(); listStockItems(1)" />
+					<button label="by category" sclass="k9mo" onClick="listout_pop.close(); listStockItems(1); stockmaster_breadcrum.setValue(stockmaster_lister_bread)" />
 				</row>
 				<row style="${NEWSTOCKITEM_BACKGROUND}">
 					<label value="Group" sclass="wbo" />
 					<listbox id="m_groupcode_lb" sclass="k9" mold="select" />
-					<button label="by group" sclass="k9mo" onClick="listout_pop.close(); listStockItems(2)" />
+					<button label="by group" sclass="k9mo" onClick="listout_pop.close(); listStockItems(2); stockmaster_breadcrum.setValue(stockmaster_lister_bread)" />
 				</row>
 				<row style="${NEWSTOCKITEM_BACKGROUND}">
 					<label value="Class" sclass="wbo" />
 					<listbox id="m_classcode_lb" sclass="k9" mold="select" />
-					<button label="by class" sclass="k9mo" onClick="listout_pop.close(); listStockItems(3)" />
+					<button label="by class" sclass="k9mo" onClick="listout_pop.close(); listStockItems(3); stockmaster_breadcrum.setValue(stockmaster_lister_bread)" />
 				</row>
 				<row style="${NEWSTOCKITEM_BACKGROUND}">
 					<label value="Search" sclass="wbo" />
 					<textbox id="m_searchtext_tb" sclass="k9" />
-					<button label="Load/Search" sclass="k9mo" onClick="listout_pop.close(); listStockItems(4)" />
+					<button label="Load/Search" sclass="k9mo" onClick='listout_pop.close(); listStockItems(4); stockmaster_breadcrum.setValue("")' />
 				</row>
 			</rows>
 		</grid>
@@ -274,7 +276,7 @@ void itemFunc(String iwhat)
 	.wbo { font-size:9px;color:#ffffff;font-weight:bold }
 </style>
 
-<div width="1000px" style="opacity: 0.8;">
+<div width="${PANEL_WIDTH}" style="opacity: 0.8;">
 <panel id="${MYPANEL}" title="${MYTITLE} ${MYVERSION}" border="normal" collapsible="true" closable="true" >
 <panelchildren style="background:#455383">
 	<div sclass="shadowbox" style="background:#C7740D">
@@ -285,16 +287,23 @@ void itemFunc(String iwhat)
 			<button id="chkdupstk_b" label="Check for duplicates" sclass="k9mo" onClick="itemFunc(self.getId())" />
 			<button id="suspitem_b" label="Suspend item" sclass="k9mo" onClick="itemFunc(self.getId())" />
 			<button id="relitem_b" label="Activate item" sclass="k9mo" onClick="itemFunc(self.getId())" />
-			<button id="admin_b" label="ADMIN" sclass="k9mo" style="color:#EF1E1E" visible="true" onClick="adminpop.open(self)" />
+			<button id="admin_b" label="ADMIN" sclass="k9mo" style="color:#EF1E1E" visible="false" onClick="adminpop.open(self)" />
 		</hbox>
 	</div>
 	<separator height="3px" />
-	<div id="stockitems_holder" sclass="shadowbox" style="background:#AEC622" />
+	<div sclass="shadowbox" style="background:#AEC622">
+		<label id="stockmaster_breadcrum" sclass="subhead1" />
+		<div id="stockitems_holder" />
+	</div>
 
 <zscript>
 <![CDATA[
-
 populateDropdowns();
+
+if(useraccessobj.accesslevel == 9)
+{
+	admin_b.setVisible(true);
+}
 
 ]]>
 </zscript>

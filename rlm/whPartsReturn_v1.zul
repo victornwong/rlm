@@ -109,6 +109,12 @@ void showOutboundMeta(String iob)
 	glob_sel_outbound = iob;
 	c_voucherno.setValue("STKOUT " + iob);
 
+	// always clear 'em prev listboxes
+	if(outitems_holder.getFellowIfAny("outitems_lb") != null) outitems_lb.setParent(null);
+	if(scanitems_holder.getFellowIfAny("itemcodes_lb") != null) itemcodes_lb.setParent(null);
+	if(returnitems_holder.getFellowIfAny("returnitems_lb") != null) returnitems_lb.setParent(null);
+	stockcode_lbl.setValue(""); itemcount_lbl.setValue("");
+
 	outbitemslb = showOutboundItems(r,outitems_holder,"outitems_lb",OBITEMS_QTY_ONLY,8);
 	returnslb = showReturnItems_listbox(iob,returnitems_holder,"returnitems_lb");
 
@@ -119,7 +125,7 @@ void showOutboundMeta(String iob)
  * Scan items handler
  * @param iwhat button ID
  */
-void funcDo(String iwhat)
+void partret_funcDo(String iwhat)
 {
 	scanitmlb = scanitems_holder.getFellowIfAny("itemcodes_lb");
 	returnitemlb = returnitems_holder.getFellowIfAny("returnitems_lb");
@@ -134,6 +140,19 @@ void funcDo(String iwhat)
 		saveReturnList(glob_sel_outbound,returnitemlb);
 		// save the scan-items list because something already moved to return-list
 		//saveOutboundScanItems(glob_sel_outbound,glob_sel_stkid,scanitmlb);
+	}
+
+	if(iwhat.equals("pushback_b")) // revert-push-back to STKOUT the selected items
+	{
+		revertParts_toStkout(glob_sel_outbound,returnitemlb);
+	}
+
+	if(iwhat.equals("commitreturnlist_b")) // commit return parts back to inventory
+	{
+		if(Messagebox.show("Return parts will be placed back into inventory..", "Are you sure?",
+			Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+		returnParts_toInventory(glob_sel_outbound,returnitemlb);
 	}
 }
 
@@ -152,6 +171,7 @@ void funcDo(String iwhat)
 				</row>
 				<row style="${LISTPOBACKGROUND}" spans="3,1">
 					<textbox id="searhtxt_tb" sclass="k9" width="95%" />
+					<!-- TODO remember to set listoutbounds() list type to 3 and 4, special for part-returns -->
 					<button label="Load/Find" sclass="k9mo" onClick="listpopop.close();listOutbounds(1)" />
 				</row>
 				<row style="${LISTPOBACKGROUND}" spans="3,1">
@@ -207,21 +227,30 @@ void funcDo(String iwhat)
 				<label id="itemcount_lbl" value="Item counter" sclass="wbo" visible="false" />
 				<div id="scanitems_holder" width="450px" />
 				<hbox>
-					<button id="addtoreturn_b" label="Move selected to return list" sclass="k9mo" onClick="funcDo(self.getId())" />
+					<button id="addtoreturn_b" label="Move selected to return list" sclass="k9mo" onClick="partret_funcDo(self.getId())" />
 				</hbox>
 			</vbox>
 			<vbox>
 				<label value="Return Items" sclass="subhead1" />
 				<div id="returnitems_holder" />
 				<hbox>
-					<button id="savereturnlist_b" label="Save return list" sclass="k9mo" onClick="funcDo(self.getId())" />
-					<button id="commitreturnlist_b" label="COMMIT - RETURN items" sclass="k9mo" style="color:#E51010" onClick="funcDo(self.getId())" />
+					<button id="savereturnlist_b" label="Save return list" sclass="k9mo" onClick="partret_funcDo(self.getId())" />
+					<button id="pushback_b" label="Revert to STKOUT" sclass="k9mo" onClick="partret_funcDo(self.getId())" />
+					<button id="commitreturnlist_b" label="COMMIT - RETURN items to inventory" sclass="k9mo" style="color:#E51010" onClick="partret_funcDo(self.getId())" />
 				</hbox>
-
 			</vbox>
 		</hbox>
 		<separator height="3px" />
 	</div>
+	<separator height="3px" />
+	<div id="nagbar" style="${NAG_BAR_STYLE}">
+		<hbox>
+			<separator width="10px" />
+			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
+		</hbox>
+	</div>
+	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
+
 <zscript>
 <![CDATA[
 

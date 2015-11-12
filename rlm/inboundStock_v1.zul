@@ -65,6 +65,35 @@ last_show_stockin = 1;
 itemcode_sel_obj = null;
 
 /**
+ * Call-back from onSelect itemsfunc->stkinclik , listStockIn() listbox
+ * @param isel [description]
+ */
+void stkin_CallBack(Object isel)
+{
+	// These are hard-coded global vars defined in calling module
+	glob_stkin_id = lbhand.getListcellItemLabel(isel,STKIN_ID_POS);
+	glob_stkin_ref = lbhand.getListcellItemLabel(isel,STKIN_REF_POS);
+	glob_stkin_description = lbhand.getListcellItemLabel(isel,STKIN_DESC_POS);
+	glob_stkin_user = lbhand.getListcellItemLabel(isel,STKIN_USER_POS);
+	glob_stkin_stkid = lbhand.getListcellItemLabel(isel,STKID_POS);
+	glob_stkin_stockcode = lbhand.getListcellItemLabel(isel,STKIN_STOCKNAME_POS);
+	glob_stkin_status = lbhand.getListcellItemLabel(isel,STKIN_STATUS_POS);
+
+	glob_item_uprice = lbhand.getListcellItemLabel(isel,STKIN_UNITPRICE_POS);
+	glob_po_curcode = lbhand.getListcellItemLabel(isel,STKIN_CURCODE_POS);
+	glob_po_exchange_rate = lbhand.getListcellItemLabel(isel,STKIN_EXCHANGERATE_POS);
+
+	w_id_lbl.setValue(glob_stkin_id);
+	w_reference_tb.setValue(glob_stkin_ref);
+	w_description_tb.setValue(glob_stkin_description);
+	w_stock_code_tb.setValue( glob_stkin_stockcode ); // stock-code display name only - real linking in stk_id
+
+	showItemcodes(glob_stkin_id, captureitemcodes_holder, "itemcodes_lb");
+	togMainButtons( lbhand.getListcellItemLabel(isel,STKIN_STATUS_POS) );
+	workarea.setVisible(true);
+}
+
+/**
  * [stkin_doFunc description]
  * @param iwhat button-ID
  */
@@ -507,6 +536,7 @@ void printStockinLabels_birt(String pstkin)
 			<button id="commitstkin_b" label="COMMIT" sclass="k9mo" onClick="stkin_doFunc(self.getId())" />
 			<button label="PUT AWAY STOCK" sclass="k9mo" visible="true" onClick="putawaypop.open(self)" />
 			<separator width="10px" />
+			<button label="View PO" sclass="k9mo" visible="true" onClick="viewPO_small(glob_stkin_ref)" />
 			<button id="adminbutt" label="ADMIN" sclass="k9mo" style="color:#EE1D1D" onClick="adminpop.open(self)" visible="false" />
 		</hbox>
 	</div>
@@ -564,6 +594,7 @@ void printStockinLabels_birt(String pstkin)
 			</vbox>
 		</hbox>
 	</div>
+	<div id="windowsholder" />
 
 <zscript>
 <![CDATA[

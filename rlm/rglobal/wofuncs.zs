@@ -8,51 +8,6 @@ String WO_Linkcode(String iprefix, String iwhat)
 	return iprefix + " " + iwhat;
 }
 
-String getSTKOUT_byWorkOrder(String iwo)
-{
-	String retval = "";
-	String wko = WORKORDER_PREFIX + " " + iwo;
-	String sqlstm = "select Id from tblStockOutMaster where WorksOrder='" + wko + "';";
-	r = sqlhand.rws_gpSqlGetRows(sqlstm);
-
-	if(r.size() > 0)
-	{
-		for(d : r)
-		{
-			retval += STKOUT_PREFIX + d.get("Id").toString() + " ";
-		}
-	}
-	return retval;
-}
-
-void viewSTKOUT_small(String iwos)
-{
-	if(iwos.equals("")) return;
-	wos = iwos.split(" ");
-	for(i=0; i<wos.length; i++)
-	{
-		wo = wos[i].replaceAll(STKOUT_PREFIX,"");
-		r = getOutboundRec(wo);
-		if(r != null)
-		{
-			//"Address1","Address2","Address3","Address4","customer_name",
-			//"telephone","fax","email","contact","salesrep","order_type","WorksOrder"
-
-			kwin = ngfun.vMakeWindow(windowsholder,"Outbound " + wos[i], "1", "center", "400px", "");
-
-			smy = "Customer: " + kiboo.checkNullString(r.get("customer_name")) +
-			"\nContact: " + kiboo.checkNullString(r.get("contact")) + "\nTel: " + kiboo.checkNullString(r.get("telephone")) + 
-			"\nEmail: " + kiboo.checkNullString(r.get("email")) + "\nWH stage: " + r.get("stage");
-
-			itmh = new Div(); itmh.setParent(kwin); itmh.setSclass("shadowbox"); itmh.setStyle("background:#ED400E");
-			kk = ngfun.gpMakeLabel(itmh,"",smy,"");
-			kk.setMultiline(true); kk.setStyle("color:#ffffff");
-
-			newlb = showOutboundItems(r,itmh,"outitems_lb" + i.toString(),OBITEMS_QTY_ONLY,5);
-		}
-	}
-}
-
 /**
  * [showWorkOrder_meta description]
  * @param iwo selected work-order origid
@@ -532,3 +487,29 @@ void initIRIS_selector()
 	luhand.populateListBox_ValueSelection(iris_section,"IRIS_SECTION_CODES",2,1);
 }
 
+/**
+ * Show work-order things - can be used by other module
+ * @param iwo : the work-order no.
+ */
+void showWorkorder_small(String iwo)
+{
+	if(iwo.equals("")) return;
+	r = getWorkOrderRec(iwo);
+	if(r == null) { guihand.showMessageBox("ERR: cannot access work-order database, contact technical"); return; }
+
+	kwin = ngfun.vMakeWindow(windowsholder, WORKORDER_PREFIX + iwo, "1", "center", "400px", "");
+	
+	smy = "Customer: " + kiboo.checkNullString(r.get("customer_name")) +
+		"\nAddress:\n" + kiboo.checkNullString(r.get("address1")) + "\n" + kiboo.checkNullString(r.get("address2")) + "\n" +
+		kiboo.checkNullString(r.get("address3")) + "\n" + kiboo.checkNullString(r.get("address4")) + "\n" +
+		"\nContact: " + kiboo.checkNullString(r.get("contact")) + 
+		"\nTel: " + kiboo.checkNullString(r.get("telephone")) + 
+		"\nEmail: " + kiboo.checkNullString(r.get("email")) +
+		"\nWO stage: " + r.get("stage") + " | Priority: " + r.get("priority") +
+		"\nApt.Date: " + kiboo.dtf2.format(r.get("appointment_date")) + " | Apt.Time: " + kiboo.checkNullString(r.get("appointment_time")) +
+		"\n\nProblem description: " + kiboo.checkNullString(r.get("problem_desc"));
+
+	itmh = new Div(); itmh.setParent(kwin); itmh.setSclass("shadowbox"); itmh.setStyle("background:#5B8FA2");
+	kk = ngfun.gpMakeLabel(itmh,"",smy,"");
+	kk.setMultiline(true); kk.setStyle("color:#ffffff");
+}

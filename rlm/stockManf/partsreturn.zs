@@ -116,3 +116,22 @@ void saveReturnList(String pOb, Listbox pRetlb)
 	} catch (Exception e) {}
 }
 
+/**
+ * Revert,pushback part-return items into STKOUT
+ * @param pOb    : the outbound voucher no.
+ * @param pRetlb : return parts listbox
+ */
+void revertParts_toStkout(String pOb, Listbox pRetlb)
+{
+
+}
+
+/**
+ * Return the return-parts back to StockList
+ * @param pOb    : the outbound voucher no.
+ * @param pRetlb : return parts listbox
+ */
+void returnParts_toInventory(String pOb, Listbox pRetlb)
+{
+
+}

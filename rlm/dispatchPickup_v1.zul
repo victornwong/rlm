@@ -1,0 +1,628 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?page id="dispatchpcikeup"?>
+<zk>
+<zscript src="rglobal/rglobal.zs" />
+<zscript src="rglobal/formMaker_v1.zs" />
+<zscript src="rglobal/rlmsql.zs" />
+<zscript src="rglobal/customerSelector.zs" />
+<zscript src="rglobal/wofuncs.zs" />
+<zscript src="rglobal/stkoutfunc.zs" />
+<zscript src="rglobal/reservatorFuncs.zs" />
+<zscript>
+<![CDATA[
+MYTITLE = "Dispatch - Pickup Management";
+MYVERSION = "v0.1";
+MYPANEL = "pcikupdisppanel";
+/**
+ * Dispatch and pickups management - uses db.pickupdisp
+ * @author Victor Wong
+ * @since 05/11/2015
+ *
+ * Knockoff from anyReservator - modified for this
+ * 
+ */
+import java.util.*;
+import java.text.*;
+import org.victor.*;
+sechand = new SecurityFuncs();
+
+myincludeid = Executions.getCurrent().getParameter("myid");
+param_paneltitle = Executions.getCurrent().getParameter("pt");
+
+try {
+useraccessobj = sechand.getUserAccessObject();
+//if(useraccessobj == null) Executions.sendRedirect(MAINLOGIN_PAGE);
+} catch (Exception e) {}
+
+kiboo = new Generals(); sqlhand = new SqlFuncs(); lbhand = new ListboxHandler();
+guihand = new GuiFuncs(); luhand = new LookupFuncs(); rwms_sql = new RWMS_sql();
+gridhand = new GridHandler(); ngfun = new NGfuncs(); rwsqlfun = new RWMS_sql();
+
+glob_sel_job = glob_sel_status = ""; // selected job-id, set and used by other modu
+JOB_SHOW_PRICING = false; // used by jobmaker_funcs to show job pricings or not
+
+glob_prev_date = null;
+glob_sel_reservation = glob_sel_username = "";
+day_selected = "";
+
+glob_sel_arcode = glob_sel_disp = glob_sel_wo = "";
+
+WORKAREA_STYLE = "background:#3E6994";
+
+Date glob_sel_date = new Date();
+
+void runTest()
+{
+	/*
+	Calendar cal = Calendar.getInstance();
+	//cal.set(Calendar.MONTH, Calendar.AUGUST);
+	//cal.set(Calendar.YEAR, 2014);
+	cal.set(Calendar.DAY_OF_MONTH, 1);
+	Date todate = cal.getTime();
+	sday = cal.get(Calendar.DAY_OF_WEEK);
+	cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH) );
+	eday = cal.get(Calendar.DAY_OF_MONTH);
+
+	alert(resv_date.getValue());
+	drawBigCalendar(resv_date, month_lbl, calendar_holder,"maincalendar",datelabelcliker);
+	*/
+}
+
+String JN_linkcode()
+{
+	if(glob_sel_disp.equals("")) return "";
+	return DISPATCH_PREFIX + glob_sel_disp;
+}
+
+class datelblcliker implements org.zkoss.zk.ui.event.EventListener
+{
+	public void onEvent(Event event) throws UiException
+	{
+		dk = event.getTarget().getChildren().toArray();
+		day_selected = dk[0].getValue();
+		showDayReservation(day_selected);
+		doFunc("clearres_b"); // clear them stuff
+	}
+}
+datelabelcliker = new datelblcliker();
+
+void doFunc(String itype)
+{
+	todaydate =  kiboo.todayISODateTimeString();
+	refresh = false;
+	sqlstm = msgtext = "";
+	unm = useraccessobj.username;
+	Calendar c_ks = new GregorianCalendar();
+	Calendar c_wk = new GregorianCalendar();
+
+	if(itype.equals("saveres_b"))
+	{
+		ks = n_res_start.getValue();
+		ke = n_res_end.getValue();
+
+		if(ks == null || ke == null)
+			msgtext = "Need a start-time and end-time..";
+		else
+		{
+			kdes = kiboo.replaceSingleQuotes( n_description.getValue().trim() );
+			if(kdes.equals("")) return;
+
+			c_wk.setTime(ks);
+			c_ks.setTime(glob_sel_date);
+			c_ks.set( Calendar.HOUR_OF_DAY, c_wk.get(Calendar.HOUR_OF_DAY) );
+			c_ks.set( Calendar.MINUTE, c_wk.get(Calendar.MINUTE) );
+			re_start = dtf.format(c_ks.getTime()); // get the reserv start time
+
+			c_wk.setTime(ke);
+			c_ks.set( Calendar.HOUR_OF_DAY, c_wk.get(Calendar.HOUR_OF_DAY) );
+			c_ks.set( Calendar.MINUTE, c_wk.get(Calendar.MINUTE) );
+			re_end = dtf.format(c_ks.getTime()); // get the reserv end time
+
+			if(glob_sel_reservation.equals(""))
+			{
+				sqlstm = "insert into elb_reservator (res_start,res_end,username,description) values " +
+				"('" + re_start + "','" + re_end + "','" + unm + "','" + kdes + "');";
+			}
+			else // an update
+			{
+				if(glob_sel_username.equals(unm)) // must be owner to update
+				{
+					sqlstm = "update elb_reservator set res_start='" + re_start + "',res_end='" + re_end + "'," +
+					"description='" + kdes + "' where origid=" + glob_sel_reservation;
+
+					alert(sqlstm);
+				}
+				else
+					msgtext = "Sorry, you're not the owner, cannot update..";
+			}
+		}
+	}
+
+	if(itype.equals("clearres_b")) // clear reset vars
+	{
+		glob_sel_reservation = glob_sel_username = "";
+		n_res_end.setValue(new Date());
+		n_res_start.setValue(new Date());
+		n_description.setValue("");
+		n_origid.setValue("");
+		//n_participants.clearSelection();
+	}
+
+	if(itype.equals("removeres_b"))
+	{
+		if(glob_sel_reservation.equals("")) return;
+
+		if(Messagebox.show("Totally remove this record..", "Are you sure?", 
+			Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) !=  Messagebox.YES) return;
+
+		sqlstm = "delete from elb_reservator where origid=" + glob_sel_reservation;
+		doFunc("clearres_b");
+	}
+
+	if(!sqlstm.equals(""))
+	{
+		sqlhand.gpSqlExecuter(sqlstm);
+		drawBigCalendar(resv_date, month_lbl, calendar_holder, "maincalendar", datelabelcliker);
+		showDayReservation(day_selected);
+	}
+	//if(refresh) 
+	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
+}
+
+/**
+ * Call-back exec from findCustomers.fndcustdclicker . Customize this for other modu
+ * @param isel    list-item object
+ * @param icid    customer.Id
+ * @param iarcode customer.ar_code
+ * @param icustn  customer.customer_name
+ */
+void findcustomer_Callback(Object isel, String icid, String iarcode, String icustn)
+{
+	selcustomer_pop.close();
+	r = getCustomer_Rec(icid);
+	if(r == null) return;
+
+	glob_sel_arcode = iarcode; // save for global usage - going to be saved into db too
+
+	Object[] kecik_dispmetaboxes = { s_customer_name, s_contact_person, s_contact_tel, s_contact_email };
+	String[] cfl = { "customer_name", "contact_person1", "telephone_no", "E_mail" };
+
+	desti = kiboo.checkNullString(r.get("address1")) + "\n" + kiboo.checkNullString(r.get("address2")) + "\n" +
+	kiboo.checkNullString(r.get("address3")) + "\n" +  kiboo.checkNullString(r.get("Address4"));
+	s_destination.setValue(desti);
+
+	ngfun.populateUI_Data(kecik_dispmetaboxes,cfl,r); // populate 'em metadata boxes
+	dispworkpop.open(printmanf_b); // need to re-open dispatch popup
+}
+
+void showDispatchMeta(String idp)
+{
+	dr = getDispatch_rec(idp);
+	if(dr == null) return;
+	ngfun.populateUI_Data(dispmetaboxes,dispmetafields,dr);
+	s_origid.setValue(DISPATCH_PREFIX + idp); // show dispatch voucher no.
+
+	jdi = (dr.get("job_id") != null) ? true : false;
+	s_job_id.setDisabled(jdi); // disable job_id textbox if any - to preserve order submitted from WO module
+}
+
+void weeklyItem_callback(Object isel)
+{
+	glob_sel_disp = lbhand.getListcellItemLabel(isel,DISP_ORIGID_POS);
+	glob_sel_wo = lbhand.getListcellItemLabel(isel,DISP_WO_POS);
+
+	showDispatchMeta(glob_sel_disp);
+	dispworkpop.open(printmanf_b);
+}
+
+void weeklyItem_onSelect_callback(Object isel)
+{
+	glob_sel_disp = lbhand.getListcellItemLabel(isel,DISP_ORIGID_POS);
+	glob_sel_wo = lbhand.getListcellItemLabel(isel,DISP_WO_POS);
+}
+
+Object[] dispweeklist_hds =
+{
+	new listboxHeaderWidthObj("##",true,"50px"),
+	new listboxHeaderWidthObj("TME",true,"50px"),
+	new listboxHeaderWidthObj("CUST",true,""),
+	new listboxHeaderWidthObj("TEL",true,""),
+	new listboxHeaderWidthObj("WO",true,"50px"), // 4
+	new listboxHeaderWidthObj("DNE",true,"40px"),
+};
+DISP_ORIGID_POS = 0;
+DISP_WO_POS = 4;
+
+class weeklyonselect implements org.zkoss.zk.ui.event.EventListener
+{
+	public void onEvent(Event event) throws UiException
+	{
+		weeklyItem_onSelect_callback(event.getReference());
+	}
+}
+weekly_cliker = new weeklyonselect();
+
+class weeklydclicker implements org.zkoss.zk.ui.event.EventListener
+{
+	public void onEvent(Event event) throws UiException
+	{
+		isel = event.getTarget();
+		try
+		{
+			weeklyItem_callback(isel);
+		} catch (Exception e) {}
+	}
+}
+weekly_doubclik = new weeklydclicker();
+
+/**
+ * Call-back from drawWeekdaysCalendar() to render details to be placed into DIV
+ * This is always module design dependant - cannot generalize this
+ * @param idate   the DIV date - used to get recs from db based on date
+ * @param iholder DIV holder
+ */
+void renderWeekly_details_callback(String idate, Div iholder)
+{
+	sqlstm = "select origid,et_action_time,customer_name,contact_tel,job_id,delivered,priority from pickupdisp where date(et_action)='" + idate + "';";
+	r = sqlhand.rws_gpSqlGetRows(sqlstm);
+	if(r.size() == 0) return;
+
+	ngfun.gpMakeSeparator(2,"3px",iholder);
+
+	lbdiv = new Div();
+	Listbox newlb = lbhand.makeVWListbox_Width(lbdiv, dispweeklist_hds, "disp"+idate, 10);
+	newlb.addEventListener("onSelect", weekly_cliker);
+
+	ArrayList kabom = new ArrayList();
+	String[] fl = { "origid", "et_action_time", "customer_name", "contact_tel", "job_id" };
+
+	for(d : r)
+	{
+		ngfun.popuListitems_Data(kabom,fl,d);
+		kabom.add( (d.get("delivered") == null) ? "N" : ((d.get("delivered") == 1) ? "Y" : "N") );
+
+		ki = lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","font-size:8px");
+
+		psty = (d.get("priority") == null) ? "" : ((d.get("priority").equals("NORMAL")) ? "" : "background:#F0BF18");
+		ki.setStyle(psty);
+
+		kabom.clear();
+	}
+	lbhand.setDoubleClick_ListItems(newlb, weekly_doubclik);
+	lbdiv.setParent(iholder);
+}
+
+void disp_doFunc(String iwhat)
+{
+	dispworkpop.close();
+	todaydate =  kiboo.todayISODateTimeString();
+	sqlstm = msgtext = ""; renum = false;
+	unm = "tester"; try { unm = useraccessobj.username; } catch (Exception e) {}
+	jnm = JN_linkcode();
+
+	if(iwhat.equals("newdispatch_b")) // insert new dispatch work
+	{
+		sqlstm = "insert into pickupdisp (datecreated,username,priority,et_action,customer_name) values " +
+		"('" + todaydate + "','" + unm + "','NORMAL','" + todaydate + "','UNDEF')";
+		msgtext = "New dispatch/pickup added..";
+	}
+
+	if(!glob_sel_disp.equals("")) // these funcs required a dispatch rec selected
+	{
+		if(iwhat.equals("upddispatch_b")) // update dispatch/pickup meta
+		{
+			d = ngfun.getString_fromUI(dispmetaboxes);
+			jbid = (d[0].equals("")) ? "null" : d[0];
+			if(d[4].equals("")) d[4] = todaydate;
+
+			sqlstm = "update pickupdisp set job_id=" + jbid + ", docu_ref='" + d[1] + "', docu_type='" + d[2] + "', priority='" + d[3] + "'," +
+			"et_action='" + d[4] + "', et_action_time='" + d[5] + "',dispatcher='" + d[6] + "',waybill='" + d[7] + "'," +
+			"destination='" + d[8] + "',contact_person='" + d[9] + "', contact_tel='" + d[10] + "',contact_email='" + d[11] + "'," +
+			"customer_name='" + d[12] + "', notes='" + d[13] + "' " +
+			"where origid=" + glob_sel_disp;
+
+			msgtext = "Dispatch/pickup " + jnm + " updated..";
+		}
+
+		if(iwhat.equals("removdispatch_b")) // remove dispatch entry
+		{
+			if(Messagebox.show("This will delete the selected dispatch/pickup..", "Are you sure?",
+				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+			sqlstm = "delete from pickupdisp where origid=" + glob_sel_disp;
+			msgtext = "Dispatch/pickup " + jnm + " deleted..";
+		}
+	}
+
+	if(!sqlstm.equals(""))
+	{
+		sqlhand.rws_gpSqlExecuter(sqlstm);
+		drawWeekdaysCalendar(startdate, enddate, month_lbl, weekly_holder); // refresh
+	}
+	if(!msgtext.equals("")) putNagText(msgtext);
+}
+
+]]>
+</zscript>
+
+<popup id="selcustomer_pop">
+	<div sclass="shadowbox" style="background:#F0D126" width="650px" >
+		<hbox>
+			<label value="Search" sclass="k9" />
+			<textbox id="searchcust_tb" sclass="k9" />
+			<button label="Find / Load" sclass="k9mo" onClick="findCustomers(searchcust_tb,foundcusts_holder,selectcustid)" />
+		</hbox>
+		<separator height="3px" />
+		<hbox>
+			<div id="foundcusts_holder" width="400px" />
+			<div>
+				<label id="selectcustid" sclass="k9mo" multiline="true" />
+			</div>
+		</hbox>
+	</div>
+</popup>
+
+<popup id="partipop">
+	<div sclass="shadowbox" style="background:#204a87;" width="400px" >
+		<listbox id="n_participants" rows="15" />
+		<separator height="3px" />
+		<button label="Save.." sclass="k9mo" />
+	</div>
+</popup>
+
+<popup id="updatefiledesc_popup"> <!-- update file description popup -->
+	<groupbox width="400px">
+		<caption id="updatefiledesc_label" />
+		<label value="Description" sclass="k9" />
+		<textbox id="update_file_description" multiline="true" height="70px" width="99%" sclass="k9" />
+		<separator height="3px" />
+		<hbox>
+			<button label="Update" sclass="k9" onClick="updateFileDescription(documents_holder,JOBS_PREFIX,glob_sel_job)" />
+			<button label="Close" sclass="k9" onClick="updatefiledesc_popup.close()" />
+		</hbox>
+	</groupbox>
+</popup>
+
+<popup id="uploadfile_popup"> <!-- upload a file popup -->
+	<groupbox>
+	<caption label="Upload a file" />
+		<grid>
+			<rows>
+				<row>
+					<label value="Filename" sclass="k9" />
+					<textbox id="fileupl_file_title" width="200px" sclass="k9" />
+				</row>
+				<row>
+					<label value="Description" sclass="k9" />
+					<textbox id="fileupl_file_description" multiline="true" height="60px" width="200px" sclass="k9" />
+				</row>
+			</rows>
+		</grid>
+	</groupbox>
+	<separator height="3px" />
+	<hbox>
+		<button label="Select file" onClick="uploadFile(documents_holder,JOBS_PREFIX,glob_sel_job)" sclass="k9" />
+		<button label="Close" onClick="uploadfile_popup.close()" sclass="k9" />
+	</hbox>
+</popup>
+
+<popup id="dispworkpop">
+	<vbox>
+		<div sclass="shadowbox" style="${WORKAREA_STYLE}" width="500px">
+			<hbox>
+				<button id="custsel_b" label="Customer" sclass="k9mo" onClick="selcustomer_pop.open(self)" />
+				<button id="upddispatch_b" label="Update metadata" sclass="k9mo" onClick="disp_doFunc(self.getId())" />
+			</hbox>
+		</div>
+		<div sclass="shadowbox" style="${WORKAREA_STYLE}">
+			<grid sclass="GridLayoutNoBorder">
+				<rows>
+					<row style="${WORKAREA_STYLE}" spans="4">
+						<label id="s_origid" sclass="subhead1" />
+					</row>
+					<row style="${WORKAREA_STYLE}">
+						<label value="WO/Job" sclass="wbo" />
+						<textbox id="s_job_id" width="40%" />
+						<label value="Ref/Action" sclass="wbo" />
+						<textbox id="s_docu_ref" sclass="k9" />
+					</row>
+					<row style="${WORKAREA_STYLE}">
+						<label value="Docu.Type" sclass="wbo" />
+						<listbox id="s_docu_type" mold="select" sclass="k9" />
+						<label value="Priority" sclass="wbo" />
+						<listbox id="s_priority" mold="select" sclass="k9" />
+					</row>
+					<row style="${WORKAREA_STYLE}">
+						<label value="Apt.Date" sclass="wbo" />
+						<datebox id="s_et_action" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+						<label value="Apt.Time" sclass="wbo" />
+						<textbox id="s_et_action_time" sclass="k9" />
+					</row>
+					<row style="${WORKAREA_STYLE}">
+						<label value="Disp/Tech" sclass="wbo" />
+						<listbox id="s_dispatcher" mold="select" sclass="k9" />
+						<label value="Waybill" sclass="wbo" />
+						<textbox id="s_waybill" sclass="k9" />
+					</row>
+					<row style="${WORKAREA_STYLE}" spans="1,3">
+						<label value="Customer name" sclass="wbo" />
+						<textbox id="s_customer_name" sclass="k9" width="98%" />
+					</row>
+					<row style="${WORKAREA_STYLE}" spans="1,3">
+						<label value="Destination" sclass="wbo" />
+						<textbox id="s_destination" sclass="k9" multiline="true" width="98%" height="60px" />
+					</row>
+					<row style="${WORKAREA_STYLE}" spans="1,3">
+						<label value="Contact" sclass="wbo" />
+						<textbox id="s_contact_person" sclass="k9" width="98%" />
+					</row>
+					<row style="${WORKAREA_STYLE}">
+						<label value="Tel" sclass="wbo" />
+						<textbox id="s_contact_tel" sclass="k9" />
+						<label value="Email" sclass="wbo" />
+						<textbox id="s_contact_email" sclass="k9" />
+					</row>
+					<row style="${WORKAREA_STYLE}" spans="1,3">
+						<label value="Notes" sclass="wbo" />
+						<textbox id="s_notes" sclass="k9" multiline="true" width="98%" height="60px" />
+					</row>
+				</rows>
+			</grid>
+		</div>
+	</vbox>
+</popup>
+
+<popup id="displilhelp">
+	<div sclass="shadowbox" style="background:#AAD834" width="450px">
+	<label multiline="true" sclass="k9">
+Dispatch list-box header description:
+TME  : appointment time
+CUST : customer name
+TEL  : customer telephone
+WO   : work-order ref
+DNE  : DONE status
+	</label>
+	</div>
+</popup>
+
+<style src="/real-world.css" />
+<style>
+	.GridLayoutNoBorder tr.z-row td.z-row-inner, tr.z-row .z-cell, div.z-grid
+	{
+		border: none; overflow: hidden; zoom: 1;
+		border-top: none; border-left: none; border-right: none; border-bottom: none;
+	}
+	.wbo { font-size:9px;color:#ffffff;font-weight:bold }
+</style>
+
+<div width="${PANEL_WIDTH}">
+<panel id="${MYPANEL}" title="${MYTITLE} ${MYVERSION}" border="none" collapsible="true" closable="true" >
+<panelchildren style="background:#2E2E2D">
+
+	<button id="admtest_b" label="test" sclass="k9mo" onClick="runTest()" visible="false" />
+	<label id="debugbox" multiline="true" style="color:#ffffff" />
+
+	<separator height="5px" />
+	<div style="margin-left:auto;margin-right:auto;width:15em">
+		<label id="month_lbl" style="font-size:24px;font-weight:bold;color:#ffffff;text-shadow: 1px 1px #000000;" />
+	</div>
+
+	<hbox>
+		<label value="Appointment date" sclass="k9mo" style="color:#ffffff" />
+		<datebox id="startdate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+		<label value="End date" sclass="k9mo" style="color:#ffffff" visible="false" />
+		<datebox id="enddate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" visible="false" />
+		<button label="Refresh" sclass="k9mo" onClick="drawWeekdaysCalendar(startdate, enddate, month_lbl, weekly_holder)" />
+		<separator width="10px" />
+		<button id="newdispatch_b" label="New dispatch/pickup" sclass="k9mo" onClick="disp_doFunc(self.getId())" />
+		<button id="removdispatch_b" label="Remove entry" sclass="k9mo" onClick="disp_doFunc(self.getId())" />
+		<button label="View work-order" sclass="k9mo" onClick="showWorkorder_small(glob_sel_wo)" />
+		<button id="printmanf_b" label="Print manifest" sclass="k9mo" />
+		<button label="HELP" sclass="k9mo" onClick="displilhelp.open(self)" />
+	</hbox>
+
+	<separator height="3px" />
+	<div id="calendar_holder" />
+
+	<div style="overflow:auto;overflow-y:hidden">
+		<div id="weekly_holder" width="6000px" />
+	</div>
+
+	<separator height="3px" />
+	<div id="nagbar" style="${NAG_BAR_STYLE}">
+		<hbox>
+			<separator width="10px" />
+			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
+		</hbox>
+	</div>
+	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
+
+	<div id="windowsholder" />
+<zscript>
+<![CDATA[
+
+Object[] dispmetaboxes = { s_job_id, s_docu_ref, s_docu_type, s_priority, s_et_action, s_et_action_time,
+	s_dispatcher, s_waybill, s_destination, s_contact_person, s_contact_tel, s_contact_email, s_customer_name,
+	s_notes
+	};
+
+String[] dispmetafields = { "job_id", "docu_ref", "docu_type", "priority", "et_action", "et_action_time",
+	"dispatcher", "waybill", "destination", "contact_person", "contact_tel", "contact_email", "customer_name",
+	"notes"
+	};
+
+luhand.populateListbox_ByLookup(s_priority, "PRIORITY", 2);
+luhand.populateListbox_ByLookup(s_docu_type, "DISPATCH_WORK_TYPE", 2);
+luhand.populateListbox_ByLookup(s_dispatcher,"TECHNICIANS",2);
+
+// append to panel title if anything passed
+//reservatrorpanel.setTitle(MYTITLE + " " + MYVERSION + " : " + param_paneltitle);
+
+//glob_formmaker = dynamicForm(jobmetaform_holder, "job_metaform", "5");
+
+kiboo.setTodayDatebox(startdate);
+drawWeekdaysCalendar(startdate, enddate, month_lbl, weekly_holder);
+
+/*
+	kiboo.setTodayDatebox(resv_date);
+	drawBigCalendar(resv_date, month_lbl, calendar_holder, "maincalendar", datelabelcliker);
+	java.util.Calendar kkk = java.util.Calendar.getInstance();
+	n_res_end.setValue(kkk.getTime()); // set startup time/date for reservation
+	n_res_start.setValue(kkk.getTime());
+*/
+//rwms_sql.populateUsernames_check(n_participants,"");
+
+if(useraccessobj.accesslevel == 9)
+{
+	//admtest_b.setVisible(true);
+	//docuattach_tab.setVisible(true);
+	//approval_tab.setVisible(true);
+}
+
+/*
+	<hbox visible="false">
+		<div sclass="shadowbox" style="background:#6CAEA2" width="400px">
+			<grid sclass="GridLayoutNoBorder">
+				<rows>
+					<row style="background:#CAF13B" spans="1,3">
+						<label value="Reservation date" sclass="k9" />
+						<datebox id="resv_date" format="yyyy-MM-dd" onCreate="kiboo.setTodayDatebox(self)" onChange="changeDate()" />
+					</row>
+					<row style="background:#CAF13B" spans="4">
+						<separator bar="true" />
+					</row>
+					<row style="background:#CAF13B" spans="1,3">
+						<label value="ID" />
+						<label id="n_origid" />
+					</row>
+					<row style="background:#CAF13B">
+						<label sclass="k9" value="Start"/>
+						<timebox id="n_res_start" />
+						<label sclass="k9" value="End" />
+						<timebox id="n_res_end" />
+					</row>
+					<row spans="1,3" style="background:#CAF13B">
+						<label sclass="k9" value="Description" />
+						<textbox id="n_description" sclass="k9" multiline="true" width="99%" height="70px" />
+					</row>
+					<row spans="4">
+						<hbox>
+							<button id="saveres_b" label="Save/update" sclass="k9mo" onClick="doFunc(self.getId())" />
+							<!-- <button label="Participants" onClick="partipop.open(self)" /> -->
+							<button id="clearres_b" label="Clear" sclass="k9mo" onClick="doFunc(self.getId())" />
+							<button id="removeres_b" label="Remove" style="font-size:9px;color:#ff0000" onClick="doFunc(self.getId())" />
+						</hbox>
+					</row>
+				</rows>
+			</grid>
+		</div>
+		<div id="day_holder" sclass="shadowbox" style="background:#6CAEA2" width="650px" />
+	</hbox>
+*/
+
+]]>
+</zscript>
+</panelchildren>
+</panel>
+</div>
+</zk>

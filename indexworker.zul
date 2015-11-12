@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?page id="als_portal_main" ?>
-<?page title="UNIVERSAL"?>
+<?page title="UNIVERSAL_realm"?>
 <?link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"?>
 <zk xmlns:h="http://www.w3.org/1999/xhtml" xmlns:zk="http://www.zkoss.org/2005/zk">
 <zscript src="rwglobal/rwglobaldefs.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "UNIVERSAL";
+MYTITLE = "REALM";
 MYVERSION = "v0.05";
 /**
  * @author Victor Wong
@@ -82,6 +82,7 @@ void runThings(String iwhat)
 
 	if(iwhat.equals("stockmaster_m")) apfn = "rlm/stockMasterMan_v1.zul";
 	if(iwhat.equals("suppliers_m")) apfn = "rlm/supplierManPanel_v1.zul";
+	if(iwhat.equals("customers_m")) apfn = "rlm/customerMan_v1.zul";
 	if(iwhat.equals("inbound_m")) apfn = "rlm/inboundStock_v1.zul";
 	if(iwhat.equals("partreturn_m")) apfn = "rlm/whPartsReturn_v1.zul";
 	if(iwhat.equals("outbound_m")) apfn = "rlm/outboundReq_v1.zul";
@@ -96,6 +97,7 @@ void runThings(String iwhat)
 	if(iwhat.equals("stlookup_m")) { apfn = "adminmodules/staticlookupman.zul"; uParams = "lu=1"; }
 	if(iwhat.equals("usercontrol_m")) apfn = "adminmodules/usercontroller.zul";
 	if(iwhat.equals("wofulfil_m")) apfn = "rlm/woFullfilment_v1.zul";
+	if(iwhat.equals("dispickup_m")) apfn = "rlm/dispatchPickup_v1.zul";
 
 	if(!apfn.equals(""))
 	{
@@ -162,6 +164,9 @@ All codes written by Victor Wong otherwise stated else
 		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="outbound_m" onClick="runThings(self.getId())">
 		<label sclass="k9mo" style="color:#ffffff" value="Parts Sales / Requests" /></div>
 
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="dispickup_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Dispatch / Pickup" /></div>
+
 	</vbox>
 </popup>
 
@@ -189,13 +194,14 @@ All codes written by Victor Wong otherwise stated else
 
 <popup id="settingmenupop" style="opacity:0.7">
 	<vbox>
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="stockmaster_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Stock Master" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="customers_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Customers" /></div>
 
 		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="suppliers_m" onClick="runThings(self.getId())">
 		<label sclass="k9mo" style="color:#ffffff" value="Suppliers" /></div>
 
-		<div sclass="shadowbox" style="${DIVBUTTONSEPARATORSTYLE}" width="${DIVBUTTONWIDTH}" />
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="stockmaster_m" onClick="runThings(self.getId())">
+		<label sclass="k9mo" style="color:#ffffff" value="Stock Master" /></div>
 	</vbox>
 </popup>
 

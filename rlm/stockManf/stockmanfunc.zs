@@ -64,8 +64,7 @@ void importStockDetails()
 			}
 		} catch (Exception e) {}
 	}
-	pstmt.executeBatch(); pstmt.close();
-	sql.close();
+	pstmt.executeBatch(); pstmt.close(); sql.close();
 
 	guihand.showMessageBox("Imported: " + lineimp.toString() + " rows from EXCEL worksheet..");
 	populateDropdowns(); // refresh dropdowns etc
@@ -100,9 +99,9 @@ void refreshThings()
 }
 
 /**
- * [stockCodeExist description]
- * @param  istk stock_code to check
- * @return      false not exist, true for exist
+ * Check new stock-code exist in StockMasterDetails.stock_code
+ * @param  :istk stock_code to check
+ * @return :false not exist, true for exist
  */
 boolean stockCodeExist(String istk)
 {
@@ -140,12 +139,22 @@ void multiDeleteStockItems()
 	if(idl.equals("")) return;
 	try
 	{
+		sqlstm = "select count(origid) as itemcount from StockList where stk_id in (" + idl + ");"; // make sure got no serialized item in this stock-code
+		kr = sqlhand.rws_gpSqlFirstRow(sqlstm);
+		if(kr != null)
+		{
+			if(kr.get("itemcount") > 0)
+			{
+				guihand.showMessageBox("ERR: there are serialized items tied to the selected stock-code");
+				return;
+			}
+		}
 		sqlstm = "delete from StockMasterDetails where ID in (" + idl + ");";
 		sqlhand.rws_gpSqlExecuter(sqlstm);
 		listStockItems(last_show_stockitems);
-		guihand.showMessageBox("OK: selected items deleted from database");
+		guihand.showMessageBox("OK: selected stock-items deleted from database");
 	}
-	catch (Exception e) { guihand.showMessageBox("ERR: cannot delete the selected items"); }
+	catch (Exception e) { guihand.showMessageBox("ERR: cannot delete the selected stock-items"); }
 }
 
 /**

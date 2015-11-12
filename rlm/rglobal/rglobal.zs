@@ -5,6 +5,7 @@ STKIN_PREFIX = "STKIN";
 STKOUT_PREFIX = "STKOUT";
 WORKORDER_PREFIX = "MYWO";
 PO_PREFIX = "MYPO"; // Malaysia PO prefix - change to others when reqd
+DISPATCH_PREFIX = "MYDP";
 
 Float GST_RATE = 0.06;
 

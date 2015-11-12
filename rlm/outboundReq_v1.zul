@@ -7,6 +7,7 @@
 <zscript src="rglobal/customerSelector.zs" />
 <zscript src="rglobal/stkoutfunc.zs" />
 <zscript src="rglobal/wofuncs.zs" />
+<zscript src="stockManf/inventorymanfunc.zs" />
 <zscript src="stockManf/stocklister.zs" />
 <zscript src="stockManf/outboundlister.zs" />
 <zscript>
@@ -19,6 +20,7 @@ MYPANEL = "outboundreqpanel";
  * @author Victor Wong
  * @since 09/09/2015
  * @notes
+ * 
 */
 import java.util.*;
 import java.text.*;
@@ -124,6 +126,18 @@ void obitem_callBack(Object isel)
 }
 
 /**
+ * Call-back from outboundlister->outbclicker onSelect : to show outbound meta
+ * @param isel [description]
+ */
+void outbound_CallBack(Object isel)
+{
+	glob_sel_stkout = lbhand.getListcellItemLabel(isel,OUTB_ORIGID_POS);
+	glob_stkout_status = lbhand.getListcellItemLabel(isel,OUTB_STATUS_POS);
+	glob_stkout_stage = lbhand.getListcellItemLabel(isel,OUTB_STAGE_POS);
+	showOutboundMeta(glob_sel_stkout);
+}
+
+/**
  * [workOrder_callBack description]
  * @param isel selected list-item
  */
@@ -143,64 +157,13 @@ void workOrder_dc_callBack(Object isel)
 }
 
 /**
- * Save outbound items listbox to db, store them into TEXT fields delimited
- * @param iob the outbound rec ID
- * @param ilb listbox holding 'em items
- * @return true=save, false=not
- */
-boolean saveOutboundItems(String iob, Listbox ilb)
-{
-	if(ilb.getItemCount() == 0) return false;
-	ts = ilb.getItems().toArray();
-	desc = stkcode = stkid = qty = uprice = "";
-	for(i=0;i<ts.length;i++)
-	{
-		desc += kiboo.replaceSingleQuotes(lbhand.getListcellItemLabel(ts[i],OBITM_DESC_POS)) + "::";
-		//stkcode += lbhand.getListcellItemLabel(ts[i],OBITM_STKCODE_POS) + "::";
-		stkid += lbhand.getListcellItemLabel(ts[i],OBITM_STKID_POS) + "::";
-		qty += lbhand.getListcellItemLabel(ts[i],OBITM_QTY_POS) + "::";
-		uprice += lbhand.getListcellItemLabel(ts[i],OBITM_UPRICE_POS) + "::";
-	}
-	sqlstm = "update tblStockOutMaster set order_stockid='" + stkid + "', order_desc='" + desc + "'," +
-	"order_qty='" + qty + "', order_uprice='" + uprice + "' where Id=" + iob;
-
-	sqlhand.rws_gpSqlExecuter(sqlstm);
-	return true;
-}
-
-/**
- * [showOutboundMeta description]
- * @param iob outbound ID
- */
-void showOutboundMeta(String iob)
-{
-	r = getOutboundRec(iob);
-	c_voucherno.setValue("STKOUT " + iob);
-	ngfun.populateUI_Data(outboundmetaboxes,outbound_fields,r);
-
-	glob_sel_arcode = kiboo.checkNullString(r.get("ar_code"));
-	c_customer_name.setDisabled( (!glob_sel_arcode.equals("")) ? true : false); // disable customer-name entry if selected-customer from db
-
-	togButts( (r.get("status").equals("DRAFT")) ? false : true ); // only DRAFT outbound can be juggled
-
-	obgrandtotal_lbl.setValue(""); // clear them totals and gst
-	gst_lbl.setValue("");
-
-	newlb = showOutboundItems(r,outitems_holder,"outitems_lb",OBITEMS_PRICE,15);
-	gp_calcPOTotal(newlb,OBITM_SUBTOT_POS,obgrandtotal_lbl,"");
-	gp_calcGST(obgrandtotal_lbl,GST_RATE,gst_lbl,"");
-
-	workarea.setVisible(true);
-}
-
-/**
  * [outboundFunc description]
  * @param iwhat button ID
  */
 void outboundFunc(String iwhat)
 {
 	todaydate =  kiboo.todayISODateTimeString();
-	sqlstm = msgtext = "";
+	sqlstm = msgtext = nagtext = "";
 	renum = false;
 	unm = "tester";
 	try { unm = useraccessobj.username; } catch (Exception e) {}
@@ -242,8 +205,8 @@ void outboundFunc(String iwhat)
 
 		if(iwhat.equals("suspend_b")) // suspend the outbound - can suspend when stage is NEW only
 		{
-			// TODO Need reload-check to stage status, in case other user already drag it for processing
-			if(glob_stkout_stage.equals("NEW"))
+			kstg = getStkout_stage(glob_sel_stkout); // Need reload-check to stage status, in case other user already drag it for processing
+			if(kstg.equals("NEW"))
 			{
 				if(Messagebox.show("You are about to suspend an outbound order", "Are you sure?",
 					Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
@@ -280,11 +243,12 @@ void outboundFunc(String iwhat)
 		if(iwhat.equals("remitem_b")) // remove items
 		{
 			removeItemcodes(outitems_holder,"outitems_lb");
+			nagtext = "Select items removed..";
 		}
 
 		if(iwhat.equals("saveoitems_b")) // save items into db
 		{
-			msgtext = (saveOutboundItems(glob_sel_stkout,obitemslb)) ? "OK: items saved.." : "ERR: items not saved or no items";
+			nagtext = (saveOutboundItems(glob_sel_stkout,obitemslb)) ? "OK: items saved.." : "ERR: items not saved or no items";
 		}
 
 		if(iwhat.equals("updoutitem_b")) // update the outbound item - call from pop-up
@@ -301,7 +265,7 @@ void outboundFunc(String iwhat)
 
 		if(iwhat.equals("setdraftob_b")) // set outbound to DRAFT - admin
 		{
-			// TODO need to update all picked items stage for this outbound as well
+			// TODO need to update all picked items stage for this outbound as well : maybe no need to
 			sqlstm = "update tblStockOutMaster set status='DRAFT', stage='NEW' where Id=" + glob_sel_stkout;
 		}
 
@@ -310,7 +274,7 @@ void outboundFunc(String iwhat)
 			sqlstm = "update tblStockOutMaster set strDate='" + todaydate + "' where Id=" + glob_sel_stkout;
 		}
 
-		if(iwhat.equals("delob_b")) // delete outbound entry - admin - MUST CHECK STATUS and STAGE
+		if(iwhat.equals("delob_b")) // delete outbound entry - admin - TODO MUST CHECK STATUS and STAGE
 		{
 			if(Messagebox.show("This will delete the selected outbound entry", "Are you sure?",
 				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
@@ -332,73 +296,7 @@ void outboundFunc(String iwhat)
 		listOutbounds(last_list_type);
 	}
 	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
-}
-
-void expPrintParts_salesorder(String pStkout)
-{
-	// parse and insert items into stkoutprint
-	r = getOutboundRec(pStkout);
-	if(r == null)
-	{
-		guihand.showMessageBox("ERR: cannot get stock-out record from database.. contact technical");
-		return;
-	}
-	
-	sqlstm = "delete from stkoutprint where stkout_parent=" + pStkout;
-	sqlhand.rws_gpSqlExecuter(sqlstm); // delete prev entries in stkoutprint
-
-	Sql sql = wms_Sql();
-	Connection thecon = sql.getConnection();
-	PreparedStatement pstmt = thecon.prepareStatement("insert into stkoutprint (item_desc,unit_price,qty,stock_code,stk_id,stkout_parent) values " +
-		"(?,?,?,?,?,?);");
-
-	desc = stkid = qty = uprice = null;
-
-	try {
-	desc = r.get("order_desc").split("::");
-	stkid = r.get("order_stockid").split("::");
-	qty = r.get("order_qty").split("::");
-	uprice = r.get("order_uprice").split("::");
-	} catch (Exception e) {}
-
-	if(desc == null) return;
-
-	for(i=0; i<desc.length; i++)
-	{
-		pstmt.setString(1,desc[i]);
-		iuprice = 0.0; try { uprc = Float.parseFloat(uprice[i]); } catch (Exception e) {}
-		pstmt.setFloat(2,uprc);
-		iqty = 0; try { iqty = Integer.parseInt(qty[i]); } catch (Exception e) {}
-		pstmt.setInt(3,iqty);
-
-		// INEFFICIENT codes to get stock_code from stockmasterdetails - RECODE
-		sr = null; try { sr = sqlhand.rws_gpSqlFirstRow("select Stock_Code from StockMasterDetails where ID=" + stkid[i]); }  catch (Exception e) {}
-		sc = (sr == null) ? UNKNOWN_STRING : sr.get("Stock_Code");
-		pstmt.setString(4,sc);
-
-		istkid = 0; try { istkid = Integer.parseInt(stkid[i]); } catch (Exception e) {}
-		pstmt.setInt(5,istkid);
-
-		pstmt.setInt(6,Integer.parseInt(pStkout));
-		pstmt.addBatch();
-	}
-
-	pstmt.executeBatch(); pstmt.close();
-	sql.close();
-
-	printPartsReq_birt(pStkout);
-}
-
-void printPartsReq_birt(String pStkout)
-{
-	bfn = "rlm/fd_partsales_v1.rptdesign";
-	thesrc = birtURL() + bfn + "&whstkout=" + pStkout + "&whstkoutpref=" + STKOUT_PREFIX;
-
-	if(partreqprintholder.getFellowIfAny("partsprintframe") != null) partsprintframe.setParent(null);
-	Iframe newiframe = new Iframe();
-	newiframe.setId("partsprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
-	newiframe.setSrc(thesrc); newiframe.setParent(partreqprintholder);
-	partreqprintoutput.open(printpartsreq_b);
+	if(!nagtext.equals("")) putNagText(nagtext);
 }
 
 ]]>
@@ -681,6 +579,14 @@ void printPartsReq_birt(String pStkout)
 			</div>
 		</hbox>
 	</div>
+	<separator height="3px" />
+	<div id="nagbar" style="${NAG_BAR_STYLE}">
+		<hbox>
+			<separator width="10px" />
+			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
+		</hbox>
+	</div>
+	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
 <zscript>
 <![CDATA[
 

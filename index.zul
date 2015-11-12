@@ -7,7 +7,7 @@
 <zscript src="rlm/rglobal/rglobal.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "UNIVERSAL";
+MYTITLE = "REALM";
 MYVERSION = "v0.05";
 /**
  * <zscript src="rwglobal/rwglobaldefs.zs" />
@@ -111,7 +111,7 @@ background: url('rwimg/RW1.jpg') no-repeat center center fixed; position="center
 -->
 
 <window id="loginwin" left="20px" top="20px" mode="overlapped" visible="true" >
-	<caption image="/rwimg/favicon.png" label="${MYTITLE}"/>
+	<caption label="${MYTITLE}"/>
 	<vbox>
 	<datebox id="hiddendatebox" format="yyyy-MM-dd" visible="false" onCreate="self.value = new Date()" />
 	<grid>
@@ -143,7 +143,7 @@ background: url('rwimg/RW1.jpg') no-repeat center center fixed; position="center
 	<div>
 		<h:center>
 			<label multiline="true" style="font-size:9px" >
-			&#169;2014,2015 Universe
+			&#169;2014,2015 Universal Realm
 			</label>
 		</h:center>
 	</div>
