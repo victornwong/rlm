@@ -11,7 +11,7 @@
 <zscript src="stockManf/polister.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "Purchase Requisition and Order";
+MYTITLE = "PURCHASE REQUISITION / ORDER";
 MYVERSION = "v0.1";
 MYPANEL = "pomangerpanel";
 /**
@@ -85,21 +85,25 @@ void loadSupplier_callback(Object isel)
  * Call-back from stock-master listbox clicker - call from stocklister.stkitemdoubelclik() and stocklister.stkitemclik()
  * @param itarget the selected listitem object
  */
-void stockItemListbox_callback(Object itarget)
+void stockmasterOnselect_callback(Object itarget)
 {
 	liststkmaster_pop.close();
 	polb = poitems_holder.getFellowIfAny("poitems_lb");
 	if( polb == null) return;
 
-	glob_sel_stock_code = lbhand.getListcellItemLabel(itarget,0);
-	glob_sel_description = lbhand.getListcellItemLabel(itarget,1);
+	glob_sel_stock_code = lbhand.getListcellItemLabel(itarget,ITM_STOCKCODE);
+	glob_sel_description = lbhand.getListcellItemLabel(itarget,ITM_DESCRIPTION);
 	glob_sel_id = lbhand.getListcellItemLabel(itarget,ITM_ID);
 
 	isel = polb.getSelectedItem();
 
-	lbhand.setListcellItemLabel(isel,1, glob_sel_id );
-	lbhand.setListcellItemLabel(isel,2, glob_sel_stock_code );
-	lbhand.setListcellItemLabel(isel,3, glob_sel_description );
+	lbhand.setListcellItemLabel(isel,POITEMS_STOCKCODE, glob_sel_id );
+	lbhand.setListcellItemLabel(isel,POITEMS_STOCKNAME, glob_sel_stock_code );
+	lbhand.setListcellItemLabel(isel,POITEMS_EXTRANOTE, glob_sel_description );
+	lbhand.setListcellItemLabel(isel,POITEMS_STRUCT,getStockMasterStruct(glob_sel_id));
+}
+void stockmasterDoubleclick_callback(Object isel)
+{
 }
 
 void PO_clickCallbak()
@@ -542,12 +546,18 @@ void poFunc(String iwhat)
 			<button id="apprpo_b" label="APPROVE" sclass="k9mo" onClick="poFunc(self.getId())" />
 			<button id="printpo_b" label="Print" sclass="k9mo" onClick="poFunc(self.getId())" />
 			<separator width="10px" />
-			<button label="ADMIN" sclass="k9mo" style="color:#D11111" onClick="adminpop.open(self)" />
+			<button id="adminbut" label="ADMIN" sclass="k9mo" style="color:#D11111" onClick="adminpop.open(self)" visible="false" />
 		</hbox>
 		<separator height="3px" />
 		<div id="poholder" />
 	</div>
-
+	<separator height="3px" />
+	<div id="nagbar" style="${NAG_BAR_STYLE}">
+		<hbox>
+			<separator width="5px" />
+			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
+		</hbox>
+	</div>
 	<div id="workarea" visible="false">
 		<hbox>
 			<div id="metaarea" sclass="shadowbox" style="background:#8B0103">
@@ -622,13 +632,6 @@ void poFunc(String iwhat)
 		</hbox>
 	</div>
 
-	<separator height="3px" />
-	<div id="nagbar" style="${NAG_BAR_STYLE}">
-		<hbox>
-			<separator width="10px" />
-			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
-		</hbox>
-	</div>
 	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
 
 <zscript>
@@ -640,6 +643,11 @@ Object[] pometaboxes = { p_apcode_tb, p_supplier_name_tb, p_sup_address_tb, p_ph
 	p_cperson1_tb, p_curcode_tb, p_exchange_rate_tb };
 
 fillStockMasterSelectorDropdowns(); // stocklister.zs
+
+if(useraccessobj.accesslevel == 9) // admin stuff
+{
+	adminbut.setVisible(true);
+}
 
 ]]>
 </zscript>

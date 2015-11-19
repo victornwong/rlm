@@ -332,7 +332,7 @@ void viewSTKOUT_small(String iwos)
 
 /**
  * Extract stkout items from text field, insert into stkoutprint to be used by BIRT
- * @param pStkout [description]
+ * @param pStkout : stock-out voucher no.
  */
 void expPrintParts_salesorder(String pStkout)
 {
@@ -381,9 +381,7 @@ void expPrintParts_salesorder(String pStkout)
 		pstmt.setInt(6,Integer.parseInt(pStkout));
 		pstmt.addBatch();
 	}
-
 	pstmt.executeBatch(); pstmt.close(); sql.close();
-	printPartsReq_birt(pStkout);
 }
 
 /**
@@ -391,10 +389,15 @@ void expPrintParts_salesorder(String pStkout)
  * Show BIRT in pop-up : partreqprintoutput
  * TODO to add 2 other templates, WORK-ORDER and CONSIGNMENT request
  * @param pStkout [description]
+ * @param pType : type, CASH_SALES, CONSIGNMENT, WORK_ORDER
  */
-void printPartsReq_birt(String pStkout)
+void printPartsReq_birt(String pStkout, String pType)
 {
-	bfn = "rlm/fd_partsales_v1.rptdesign";
+	bfn = "";
+	if(pType.equals("CASH_SALES")) bfn = "rlm/fd_partsales_v1.rptdesign";
+	if(pType.equals("CONSIGNMENT")) bfn = "rlm/fd_consignment_v1.rptdesign";
+	if(bfn.equals("")) return; // in-case not-yet program template
+
 	thesrc = birtURL() + bfn + "&whstkout=" + pStkout + "&whstkoutpref=" + STKOUT_PREFIX;
 
 	if(partreqprintholder.getFellowIfAny("partsprintframe") != null) partsprintframe.setParent(null);

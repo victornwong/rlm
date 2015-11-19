@@ -9,13 +9,10 @@ Object[] poitemshds =
 	new listboxHeaderWidthObj("Qty",true,"50px"),
 	new listboxHeaderWidthObj("U/Price",true,"70px"),
 	new listboxHeaderWidthObj("SubTotal",true,"70px"),
+	new listboxHeaderWidthObj("Struct",true,""),
 };
-POITEMS_STOCKCODE = 1;
-POITEMS_STOCKNAME = 2;
-POITEMS_EXTRANOTE = 3;
-POITEMS_QTY = 4;
-POITEMS_UPRICE = 5;
-POITEMS_SUBTOTAL = 6;
+POITEMS_STOCKCODE = 1; POITEMS_STOCKNAME = 2; POITEMS_EXTRANOTE = 3; POITEMS_QTY = 4;
+POITEMS_UPRICE = 5; POITEMS_SUBTOTAL = 6; POITEMS_STRUCT = 7;
 
 class poitemdclik implements org.zkoss.zk.ui.event.EventListener
 {
@@ -54,6 +51,7 @@ Listbox showPOitems(String ipo, Div iholder, String ilbid)
 			kabom.add("0");
 			ngfun.popuListitems_Data(kabom,fl,d);
 			kabom.add("0"); // subtotal
+			kabom.add(getStockMasterStruct(d.get("stock_code").toString()));
 			lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
 			kabom.clear();
 		}
@@ -125,6 +123,7 @@ void addQueueItem_toPO(Div idiv, String ilbid, int itype)
 		kabom.add(lbhand.getListcellItemLabel(ts[i],ORDQ_QTY)); // qty
 		kabom.add("0"); // unit-price
 		kabom.add("0"); // subtotal
+		kabom.add(""); // stock-master struct
 		lbhand.insertListItems(poitemslb,kiboo.convertArrayListToStringArray(kabom),"false","");
 		kabom.clear();
 	}

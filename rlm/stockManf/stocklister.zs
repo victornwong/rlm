@@ -15,19 +15,20 @@ Object[] stkitemshds =
 {
 	new listboxHeaderWidthObj("StockCode",true,""),
 	new listboxHeaderWidthObj("Description",true,""),
+	new listboxHeaderWidthObj("Eqt/Model",true,""),
 	new listboxHeaderWidthObj("Category",true,""),
 	new listboxHeaderWidthObj("Group",true,""),
-	new listboxHeaderWidthObj("Class",true,""),
-	new listboxHeaderWidthObj("Entry",true,""), // 5
+	new listboxHeaderWidthObj("Class",true,""), // 5
+	new listboxHeaderWidthObj("Entry",true,""),
 	new listboxHeaderWidthObj("Act",false,""),
-	new listboxHeaderWidthObj("STKID",true,""), // 7
-	new listboxHeaderWidthObj("Avail",true,"50px"),
+	new listboxHeaderWidthObj("STKID",false,""), // 8
+	new listboxHeaderWidthObj("Avail",true,"50px"), // 9
 };
-ITM_STOCKCODE = 0; ITM_DESCRIPTION = 1;
-ITM_CATEGORY = 2; ITM_GROUP = 3; ITM_CLASS = 4;
-ITM_ENTRYDATE = 5; ITM_ACTIVEFLAG = 6;
-ITM_ID = 7;
-ITM_AVAILABLE = 8;
+ITM_STOCKCODE = 0; ITM_DESCRIPTION = 1; ITM_EQTMODEL = 2;
+ITM_CATEGORY = 3; ITM_GROUP = 4; ITM_CLASS = 5;
+ITM_ENTRYDATE = 6; ITM_ACTIVEFLAG = 7;
+ITM_ID = 8;
+ITM_AVAILABLE = 9;
 
 /**
  * onSelect for stock_items_lb
@@ -39,15 +40,7 @@ class stkitemclik implements org.zkoss.zk.ui.event.EventListener
 	{
 		try
 		{
-		isel = event.getReference();
-		glob_sel_stock_code = lbhand.getListcellItemLabel(isel,0);
-		glob_sel_description = lbhand.getListcellItemLabel(isel,1);
-		glob_sel_stock_cat = lbhand.getListcellItemLabel(isel,2);
-		glob_sel_groupcode = lbhand.getListcellItemLabel(isel,3);
-		glob_sel_classcode = lbhand.getListcellItemLabel(isel,4);
-		glob_sel_id = lbhand.getListcellItemLabel(isel,ITM_ID);
-
-		stockItemListbox_callback(isel);
+		stockmasterOnselect_callback(event.getReference());
 		} catch (Exception e) {}
 	}
 }
@@ -59,24 +52,7 @@ class stkitemdoubelclik implements org.zkoss.zk.ui.event.EventListener
 	{
 		try
 		{
-			isel = event.getTarget();
-			glob_sel_stock_code = lbhand.getListcellItemLabel(isel,0);
-			glob_sel_description = lbhand.getListcellItemLabel(isel,1);
-			glob_sel_stock_cat = lbhand.getListcellItemLabel(isel,2);
-			glob_sel_groupcode = lbhand.getListcellItemLabel(isel,3);
-			glob_sel_classcode = lbhand.getListcellItemLabel(isel,4);
-			glob_sel_id = lbhand.getListcellItemLabel(isel,ITM_ID);
-
-			e_stock_code_tb.setValue(glob_sel_stock_code);
-			e_description_tb.setValue(glob_sel_description);
-			e_stock_cat_cb.setValue(glob_sel_stock_cat);
-			e_groupcode_cb.setValue(glob_sel_groupcode);
-			e_classcode_cb.setValue(glob_sel_classcode);
-
-			editstockitem_pop.open(isel);
-
-			stockItemListbox_callback(isel);
-
+			stockmasterDoubleclick_callback(event.getTarget());
 		} catch (Exception e) {}
 	}
 }
@@ -92,7 +68,7 @@ void listStockItems(int itype)
 	last_show_stockitems = itype;
 	Listbox newlb = lbhand.makeVWListbox_Width(stockitems_holder, stkitemshds, "stock_items_lb", 3);
 
-	sqlstm = "select sm.Stock_Code,sm.Description,sm.Stock_Cat,sm.GroupCode,sm.ClassCode,sm.EntryDate,sm.ID,sm.IsActive," +
+	sqlstm = "select sm.Stock_Code,sm.Description,sm.Stock_Cat,sm.GroupCode,sm.ClassCode,sm.EntryDate,sm.ID,sm.IsActive, sm.Product_Detail," +
 	"(select sum(Balance) from StockList where stk_id=sm.ID and stage='NEW') as available from StockMasterDetails sm ";
 	wherestr = "where ";
 	stkcat = "";
@@ -145,7 +121,7 @@ void listStockItems(int itype)
 	newlb.setRows(20); newlb.setMultiple(true); newlb.setCheckmark(true); newlb.setMold("paging");
 	newlb.addEventListener("onSelect", stockitemclicker);
 
-	String[] fl = { "Stock_Code", "Description", "Stock_Cat", "GroupCode", "ClassCode", "EntryDate", "IsActive", "ID", "available" };
+	String[] fl = { "Stock_Code", "Description", "Product_Detail", "Stock_Cat", "GroupCode", "ClassCode", "EntryDate", "IsActive", "ID", "available" };
 	ArrayList kabom = new ArrayList();
 
 	for(d : r)

@@ -114,29 +114,19 @@ background: url('rwimg/RW1.jpg') no-repeat center center fixed; position="center
 	<caption label="${MYTITLE}"/>
 	<vbox>
 	<datebox id="hiddendatebox" format="yyyy-MM-dd" visible="false" onCreate="self.value = new Date()" />
-	<grid>
+	<grid width="250px">
 		<rows>
 			<row>
-				<hbox>
-					<separator width="290px" />
-					<label value="Username" />
-				</hbox>
+				<label value="Username" />
 				<textbox id="tb_username" width="120px" />
 			</row>
 			<row>
-				<hbox>
-					<separator width="290px" />
-					<label value="Password" />
-				</hbox>
+				<label value="Password" />
 				<textbox id="tb_password" type="password" width="120px" onOk="loginToSystem()" />	
 			</row>
 			<row>
-			<label multiline="true" style="font-size:9px" >
-			</label>
-				<hbox>
-					<button id="loginbutt" label="Login" onClick="loginToSystem(self)" />
-					<!-- <button id="tablogin" label="Tab login" onClick="loginToSystem(self)" /> -->
-				</hbox>
+				<button id="loginbutt" label="Login" onClick="loginToSystem(self)" />
+				<!-- <button id="tablogin" label="Tab login" onClick="loginToSystem(self)" /> -->
 			</row>
 		</rows>
 	</grid>

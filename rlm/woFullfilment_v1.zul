@@ -12,7 +12,7 @@
 <zscript src="stockManf/outboundlister.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "WOF";
+MYTITLE = "WORK ORDER FULFILLMENT";
 MYVERSION = "v0.1";
 MYPANEL = "workorderfulfilment";
 /**
@@ -64,14 +64,14 @@ glob_sel_woitemobj = null; glob_sel_workorder_listitem = null;
  * Call-back from stock-master listbox clicker - call from stocklister.stkitemdoubelclik() and stocklister.stkitemclik()
  * @param itarget the selected listitem object
  */
-void stockItemListbox_callback(Object itarget)
+void stockmasterOnselect_callback(Object itarget)
 {
 	liststkmaster_pop.close();
 	woitemslb = things_holder.getFellowIfAny("things_lb");
 	if( woitemslb == null) return;
 
-	glob_sel_stock_code = lbhand.getListcellItemLabel(itarget,0);
-	glob_sel_description = lbhand.getListcellItemLabel(itarget,1);
+	glob_sel_stock_code = lbhand.getListcellItemLabel(itarget,ITM_STOCKCODE);
+	glob_sel_description = lbhand.getListcellItemLabel(itarget,ITM_DESCRIPTION);
 	glob_sel_id = lbhand.getListcellItemLabel(itarget,ITM_ID);
 
 	try
@@ -80,7 +80,11 @@ void stockItemListbox_callback(Object itarget)
 		lbhand.setListcellItemLabel(isel,WOI_STKID_POS, glob_sel_id );
 		lbhand.setListcellItemLabel(isel,WOI_STOCKCODE_POS, glob_sel_stock_code );
 		lbhand.setListcellItemLabel(isel,WOI_PROBLEM_POS, glob_sel_description );
+		lbhand.setListcellItemLabel(isel,WOI_STRUCT_POS,getStockMasterStruct(glob_sel_id));
 	} catch (Exception e) {}
+}
+void stockmasterDoubleclick_callback(Object isel)
+{
 }
 
 /**
@@ -233,7 +237,7 @@ void woFunc(String iwhat)
 		listWorkOrders(workorder_holder, "wo_lb", startdate, enddate, searhtxt_tb,bywo_tb, last_list_wo, true);
 	}
 	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
-	if(!fastmessage.equals("")) showfastmessage_lbl.setValue(fastmessage);
+	if(!fastmessage.equals("")) putNagText(fastmessage);
 }
 
 /**
@@ -419,6 +423,13 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 		<div id="workorder_holder" />
 	</div>
 	<separator height="3px" />
+		<div id="nagbar" style="${NAG_BAR_STYLE}">
+		<hbox>
+			<separator width="5px" />
+			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
+		</hbox>
+	</div>
+	<separator height="3px" />
 	<div id="workarea" sclass="shadowbox" style="background:#2F6B9C" visible="false">
 		<hbox>
 			<button id="pickupwo_b" label="Start work-order" sclass="k9mo" onClick="woFunc(self.getId())" />
@@ -452,7 +463,7 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 				<grid sclass="GridLayoutNoBorder" width="500px">
 					<rows>
 						<row spans="1,3" style="${WODETAIL_STYLE}">
-							<label value="ARCode" sclass="wbo" />
+							<label value="ARCode :" sclass="wbo" />
 							<label id="w_ar_code" sclass="wbo" />
 						</row>
 						<row spans="1,3" style="${WODETAIL_STYLE}">
@@ -497,9 +508,9 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 				<grid sclass="GridLayoutNoBorder" width="500px">
 					<rows>
 						<row style="${WODETAIL_STYLE}">
-							<label value="Work type" sclass="wbo" />
+							<label value="Work type :" sclass="wbo" />
 							<listbox id="w_work_type" sclass="k9" mold="select" disabled="true" />
-							<label value="ASC" sclass="wbo" />
+							<label value="ASC :" sclass="wbo" />
 							<listbox id="w_asc_user" sclass="k9" mold="select" disabled="true" />
 						</row>
 						<row style="${WODETAIL_STYLE}">
@@ -511,8 +522,18 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 						<row style="${WODETAIL_STYLE}">
 							<label value="Warranty No. :" sclass="wbo" />
 							<label id="w_warrantycard" sclass="k9" width="98%" />
-							<label value="Priority" sclass="wbo" />
+							<label value="Priority :" sclass="wbo" />
 							<listbox id="w_priority" sclass="k9" mold="select" disabled="true" />
+						</row>
+						<row style="${WODETAIL_STYLE}">
+							<label value="Purchase date :" sclass="wbo" />
+							<datebox id="w_purchase_date" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" disabled="true" />
+							<label value="Warranty status :" sclass="wbo" />
+							<listbox id="w_warranty_status" sclass="k9" mold="select" disabled="true" />
+						</row>
+						<row style="${WODETAIL_STYLE}" spans="1,3">
+							<label value="Dealer ref. :" sclass="wbo" />
+							<label id="w_dealer_ref" sclass="k9" />
 						</row>
 						<row style="${WODETAIL_STYLE}" spans="4">
 							<label value="Problem description :" sclass="wbo" />
@@ -521,12 +542,21 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 							<label id="w_remarks" sclass="k9" width="98%" multiline="true" />
 						</row>
 						<row style="${WODETAIL_STYLE}" spans="1,3">
-							<label value="Assign to" sclass="wbo" />
+							<label value="Assign to :" sclass="wbo" />
 							<listbox id="w_technician" mold="select" sclass="k9" disabled="true" />
+						</row>
+						<row style="${WODETAIL_STYLE}" >
+							<label value="Appointment :" sclass="wbo" />
+							<datebox id="w_appointment_date" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" disabled="true" />
+							<label value="Time :" sclass="wbo" />
+							<label id="w_appointment_time" sclass="k9" width="50%" />
+						</row>
+						<row  style="${WODETAIL_STYLE}" spans="4">
+							<label id="pickuporder_lbl" sclass="wbo" />
 						</row>
 					</rows>
 				</grid>
-
+				<separator bar="true" />
 				<grid sclass="GridLayoutNoBorder" width="500px">
 					<rows>
 						<row style="${WODETAIL_STYLE}" spans="1,2" >
@@ -606,7 +636,8 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 	</div>
 
 	<div id="windowsholder" />
-	<timer id="maintimer" delay="${TIMER_DELAY}" repeats="true" onTimer="timerFunc()" />
+	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
+	<!-- <timer id="maintimer" delay="${TIMER_DELAY}" repeats="true" onTimer="timerFunc()" /> -->
 <zscript>
 <![CDATA[
 
@@ -617,11 +648,13 @@ void timerFunc()
 
 Object[] wocustomermetaboxes = { 
 	w_ar_code, w_customer_name, w_address1, w_address2, w_address3, w_address4,
-	w_contact, w_telephone, w_email, w_work_type, w_asc_user, w_model, w_serial_no, w_warrantycard, w_remarks, w_priority, w_technician };
+	w_contact, w_telephone, w_email, w_work_type, w_asc_user, w_model, w_serial_no, w_warrantycard, w_remarks, w_priority, w_technician, w_purchase_date,
+	w_warranty_status, w_appointment_date, w_appointment_time, w_dealer_ref };
 
 String[] wocustomermfields = {
 	"ar_code", "customer_name", "address1", "address2", "address3", "address4",
-	"contact", "telephone", "email", "work_type", "asc_user", "model", "serial_no", "warrantycard", "remarks", "priority", "technician" };
+	"contact", "telephone", "email", "work_type", "asc_user", "model", "serial_no", "warrantycard", "remarks", "priority", "technician", "purchase_date",
+	"warranty_status", "appointment_date", "appointment_time", "dealer_ref" };
 
 Object[] woextrameta = { w_close_work, w_close_by, w_deliverdate, w_delivery_mode, w_delivery_bill };
 String[] woextramfields = { "close_work", "close_by", "deliverdate", "delivery_mode", "delivery_bill" };
@@ -632,6 +665,7 @@ luhand.populateListbox_ByLookup(w_priority, "PRIORITY", 2);
 luhand.populateListbox_ByLookup(w_work_type, "WO_WORKTYPE", 2);
 luhand.populateListbox_ByLookup(w_asc_user, "WO_ASC_OUTSOURCE", 2);
 luhand.populateListbox_ByLookup(w_technician,"TECHNICIANS",2);
+luhand.populateListbox_ByLookup(w_warranty_status,"WARRANTY_STATUS",2);
 
 fillStockMasterSelectorDropdowns(); // stocklister.zs
 

@@ -12,7 +12,7 @@
 <zscript src="stockManf/outboundlister.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "WOM";
+MYTITLE = "WORK ORDER MANAGEMENT";
 MYVERSION = "v0.1";
 MYPANEL = "worksoriderpanel";
 /**
@@ -111,6 +111,7 @@ void stockItemListbox_callback(Object itarget)
 		lbhand.setListcellItemLabel(isel,WOI_STKID_POS, glob_sel_id );
 		lbhand.setListcellItemLabel(isel,WOI_STOCKCODE_POS, glob_sel_stock_code );
 		lbhand.setListcellItemLabel(isel,WOI_PROBLEM_POS, glob_sel_description );
+		lbhand.setListcellItemLabel(isel,WOI_STRUCT_POS,getStockMasterStruct(glob_sel_id));
 	} catch (Exception e) {}
 }
 
@@ -336,11 +337,16 @@ void woFunc(String iwhat)
 
 		if(iwhat.equals("printwo_b")) // print committed work-order
 		{
-			// Committed WO print only
-			if(glob_wo_status.equals("COMMIT")) printWO_birt(glob_sel_workorder);
+			if(glob_wo_status.equals("COMMIT")) printWO_birt(glob_sel_workorder); // Committed WO print only
 			else msgtext = "Do commit the work-order first to print..";
 		}
 
+		if(iwhat.equals("printwoparts_b")) // print parts/whatever bill used in work-order
+		{
+			expPrintParts_workorder(glob_sel_workorder);
+			printParts_WO_birt(glob_sel_workorder,"");
+			
+		}
 	}
 
 	if(renum)
@@ -364,22 +370,6 @@ void woFunc(String iwhat)
 }
 
 /**
- * Print WO in BIRT, uses WORKORDER_PREFIX as wopref param to BIRT. Concat with iwo to form full WO ID
- * @param iwo selected WO
- */
-void printWO_birt(String iwo)
-{
-	bfn = "rlm/workorder_v1.rptdesign";
-	thesrc = birtURL() + bfn + "&woid=" + iwo + "&wopref=" + WORKORDER_PREFIX;
-
-	if(woprintholder.getFellowIfAny("woprintframe") != null) woprintframe.setParent(null);
-	Iframe newiframe = new Iframe();
-	newiframe.setId("woprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
-	newiframe.setSrc(thesrc); newiframe.setParent(woprintholder);
-	woprintoutput.open(printwo_b);
-}
-
-/**
  * Insert a pickup/dispatch order to be handled by dispatcher or on-site technicians
  * Generalize to make it useable in other module
  * @param recthings string array of stuff to insert into table pickupdisp , size(10)
@@ -388,7 +378,7 @@ void printWO_birt(String iwo)
  * [4] = contact email 					[5] = pickup date
  * [6] = pickup time 						[7] = docu/pickup type
  * [8] = dispatcher 						[9] = job/work order
- * [10] = job priority
+ * [10] = job w_priority 				[11] = problem/description
  */
 void insertPickupOrder_db(String[] recthings, String iunm)
 {
@@ -398,17 +388,17 @@ void insertPickupOrder_db(String[] recthings, String iunm)
 	sqlhand.rws_gpSqlExecuter(sqlstm); // delete prev pickup order if any
 
 	sqlstm = "insert into pickupdisp (datecreated,priority,username,dispatcher,et_action,et_action_time,docu_type," +
-	"customer_name,destination,contact_person,contact_tel,contact_email,job_id,priority) values " +
+	"customer_name,destination,contact_person,contact_tel,contact_email,job_id,priority,notes,delivered) values " +
 	"('" + todaydate + "','NORMAL','" + iunm + "','" + recthings[8] + "','" + recthings[5] + "','" + recthings[6] + "','" + recthings[7] + "'," +
 	"'" + recthings[0] + "','" + recthings[1] + "','" + recthings[2] + "','" + recthings[3] + "','" + recthings[4] + "'," + recthings[9] + "'," +
-	"'" + recthings[10] + "');";
+	"'" + recthings[10] + "','" + recthings[11] + "',0);";
 
 	sqlhand.rws_gpSqlExecuter(sqlstm);
 }
 
 void submitPickupOrder()
 {
-	String[] kp = new String[11]; // check array reference in insertPickupOrder_db()
+	String[] kp = new String[12]; // check array reference in insertPickupOrder_db()
 	unm = "tester"; try { unm = useraccessobj.username; } catch (Exception e) {}
 	d = ngfun.getString_fromUI(wocustomermetaboxes); // refer to pre-defined fields
 
@@ -423,6 +413,7 @@ void submitPickupOrder()
 	kp[8] = d[16]; // dispatcher or technician
 	kp[9] = glob_sel_workorder;
 	kp[10] = glob_wo_priority;
+	kp[11] = d[14]; // job problem/description submit to pickupdisp.notes
 
 	insertPickupOrder_db(kp,unm);
 	putNagText("Onsite appointment/pickup order submitted..");
@@ -430,6 +421,10 @@ void submitPickupOrder()
 
 ]]>
 </zscript>
+
+<popup id="woitemsprintout">
+	<div id="woitemsprintholder" width="700px" />
+</popup>
 
 <popup id="woprintoutput">
 	<div id="woprintholder" width="700px" />
@@ -579,7 +574,8 @@ void submitPickupOrder()
 			<separator width="10px" />
 			<button id="newwork_b" label="New work order" sclass="k9mo" onClick="woFunc(self.getId())" />
 			<button id="commitwork_b" label="Commit" sclass="k9mo" onClick="woFunc(self.getId())" />
-			<button id="printwo_b" label="Print" sclass="k9mo" onClick="woFunc(self.getId())" />
+			<button id="printwo_b" label="Print work order" sclass="k9mo" onClick="woFunc(self.getId())" />
+			<button id="printwoparts_b" label="Print parts bill" sclass="k9mo" onClick="woFunc(self.getId())" />
 			<button id="closework_b" label="Close" sclass="k9mo" onClick="woFunc(self.getId())" />
 			<button label="Deliver" sclass="k9mo" onClick="deliverywo_pop.open(self)" />
 			<separator width="10px" />
@@ -703,16 +699,19 @@ void submitPickupOrder()
 						<row style="${WODETAIL_STYLE}" spans="4">
 							<textbox id="w_remarks" sclass="k9" width="98%" height="80px" multiline="true" />
 						</row>
-						<row style="${WODETAIL_STYLE}" >
+						<row style="${WODETAIL_STYLE}" spans="1,3" >
 							<label value="Assign to" sclass="wbo" />
 							<listbox id="w_technician" mold="select" sclass="k9" />
+						</row>
+						<row style="${WODETAIL_STYLE}" >
 							<label value="Appointment" sclass="wbo" />
-							<hbox>
-								<datebox id="w_appointment_date" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
-								<label value="Time" sclass="k9mo" />
-								<textbox id="w_appointment_time" sclass="k9" width="50%" />
-								<button label="Submit pickup order" sclass="k9mo" onClick="submitPickupOrder()" />
-							</hbox>
+							<datebox id="w_appointment_date" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+							<label value="Time" sclass="wbo" />
+							<textbox id="w_appointment_time" sclass="k9" width="50%" />
+						</row>
+						<row style="${WODETAIL_STYLE}" spans="2,2" >
+							<button label="Submit pickup order" sclass="k9mo" onClick="submitPickupOrder()" />
+							<label id="pickuporder_lbl" sclass="wbo" />
 						</row>
 					</rows>
 				</grid>

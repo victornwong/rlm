@@ -11,7 +11,7 @@
 <zscript src="stockManf/itemsfunc.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "WHIN-GRN";
+MYTITLE = "GOODS RECEIVAL (WHSTKIN-GRN)";
 MYVERSION = "v0.1";
 MYPANEL = "inbounstockpanel";
 /**
@@ -63,6 +63,19 @@ glob_item_uprice = glob_po_exchange_rate = glob_po_curcode = "";
 last_show_stockin = 1;
 
 itemcode_sel_obj = null;
+
+void stockmasterOnselect_callback(Object isel)
+{
+}
+
+/**
+ * Call-back from stock-master listbox clicker - call from stocklister.stkitemdoubelclik()
+ * @param isel the selected listitem object
+ */
+void stockmasterDoubleclick_callback(Object isel)
+{
+	w_stock_code_tb.setValue(lbhand.getListcellItemLabel(isel,ITM_STOCKCODE));
+}
 
 /**
  * Call-back from onSelect itemsfunc->stkinclik , listStockIn() listbox

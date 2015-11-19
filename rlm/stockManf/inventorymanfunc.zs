@@ -94,18 +94,6 @@ class invt_peritem_click implements org.zkoss.zk.ui.event.EventListener
 }
 invperitem_clicker = new invt_peritem_click();
 
-String getStockMasterStruct(String istkid)
-{
-	retval = "";
-	sqlstm = "select Stock_Cat,GroupCode,ClassCode from StockMasterDetails where ID=" + istkid;
-	d = sqlhand.rws_gpSqlFirstRow(sqlstm);
-	if(d != null)
-	{
-		retval = kiboo.checkNullString(d.get("Stock_Cat")) + ">" + kiboo.checkNullString(d.get("GroupCode")) + ">" + kiboo.checkNullString(d.get("ClassCode"));
-	}
-	return retval;
-}
-
 /**
  * Show inventory things by stock-master ID passed
  * @param istkid : the stock-master ID

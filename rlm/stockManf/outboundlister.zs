@@ -118,16 +118,14 @@ Object[] outbdhds =
 	new listboxHeaderWidthObj("STKOUT",true,"55px"),
 	new listboxHeaderWidthObj("Dated",true,"80px"),
 	new listboxHeaderWidthObj("Customer",true,""),
-	new listboxHeaderWidthObj("Type",true,"80px"),
-	new listboxHeaderWidthObj("Status",true,"80px"),
+	new listboxHeaderWidthObj("Type",true,"80px"), // 3
+	new listboxHeaderWidthObj("Status",true,"80px"), // 4
 	new listboxHeaderWidthObj("WH Stage",true,"80px"), // 5
 	new listboxHeaderWidthObj(WORKORDER_PREFIX,true,"80px"),
 	new listboxHeaderWidthObj("User",true,"80px"),
 };
 OUTB_ORIGID_POS = 0;
-OUTB_STATUS_POS = 4;
-OUTB_STAGE_POS = 5;
-OUTB_WORKORDER_POS = 6;
+OUTB_TYPE_POS = 3; OUTB_STATUS_POS = 4; OUTB_STAGE_POS = 5; OUTB_WORKORDER_POS = 6;
 
 class outbclicker implements org.zkoss.zk.ui.event.EventListener
 {

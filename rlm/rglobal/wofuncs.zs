@@ -44,9 +44,9 @@ Object showWorkOrder_meta(String iwo)
 		try { iris_problem_code.setValue(kk[1]); } catch (Exception e) {}
 		try { iris_extended_code.setValue(kk[2]); } catch (Exception e) {}
 	}
-	
-	wko = getSTKOUT_byWorkOrder(iwo); // show STKOUT if any
-	WorksOrder_ref.setValue(wko);
+
+	WorksOrder_ref.setValue(getSTKOUT_byWorkOrder(iwo)); // show STKOUT if any (stkoutfunc.zs)
+	pickuporder_lbl.setValue("Pickup no.: " + getDispatch_byWorkOrder(iwo)); // show dispatch/pickup if any (rlmsql.zs)
 
 	workarea.setVisible(true);
 	return wr;
@@ -190,7 +190,7 @@ void listWorkOrders(Div iholder, String ilbid, Datebox istart, Datebox iend,
 			break;
 	}
 
-	if(DEBUG_MODE) debugbox.setValue(sqlstm);
+	//if(DEBUG_MODE) debugbox.setValue(sqlstm);
 	r = sqlhand.rws_gpSqlGetRows(sqlstm);
 	if(r.size() == 0) return;
 	newlb.setRows(15); newlb.setMold("paging"); // newlb.setMultiple(true); newlb.setCheckmark(true); 
@@ -205,9 +205,11 @@ void listWorkOrders(Div iholder, String ilbid, Datebox istart, Datebox iend,
 		ngfun.popuListitems_Data(kabom,fl,d);
 		sty = "";
 		// check on priority and set style
+		/*
 		if(d.get("priority").equals("MEDIUM")) sty = PRIORITY_MEDIUM_STYLE;
 		if(d.get("priority").equals("HIGH")) sty = PRIORITY_HIGH_STYLE;
 		if(d.get("priority").equals("ZERO_TOLERANCE")) sty = PRIORITY_ZTC_STYLE;
+		*/
 
 		// Get WH stage based on work-order
 		wocode = WO_Linkcode(WORKORDER_PREFIX,d.get("origid").toString());
@@ -235,19 +237,16 @@ Object[] woitemshds =
 	new listboxHeaderWidthObj("No.",true,"60px"),
 	new listboxHeaderWidthObj("Problem",true,""),
 	new listboxHeaderWidthObj("Solution",true,""),
-	new listboxHeaderWidthObj("StockCode",true,"130px"),
-	new listboxHeaderWidthObj("stkid",true,""),
-	new listboxHeaderWidthObj("Qty",true,"50px"),
+	new listboxHeaderWidthObj("StockCode",true,"130px"), // 3
+	new listboxHeaderWidthObj("stkid",false,""),
+	new listboxHeaderWidthObj("Qty",true,"50px"), // 5
 	new listboxHeaderWidthObj("U/Price",true,"70px"),
-	new listboxHeaderWidthObj("SubTotal",true,"70px"),
+	new listboxHeaderWidthObj("SubTotal",true,"70px"), // 7
+	new listboxHeaderWidthObj("Struct",true,""), // 7
+
 };
-WOI_PROBLEM_POS = 1;
-WOI_SOLUTION_POS = 2;
-WOI_STOCKCODE_POS = 3;
-WOI_STKID_POS = 4;
-WOI_QTY_POS = 5;
-WOI_UPRICE_POS = 6;
-WOI_SUBTOTAL_POS = 7;
+WOI_PROBLEM_POS = 1; WOI_SOLUTION_POS = 2; WOI_STOCKCODE_POS = 3; WOI_STKID_POS = 4;
+WOI_QTY_POS = 5; WOI_UPRICE_POS = 6; WOI_SUBTOTAL_POS = 7; WOI_STRUCT_POS = 8;
 
 class woitemdclicker implements org.zkoss.zk.ui.event.EventListener
 {
@@ -285,6 +284,7 @@ void insertWOitem(Div iholder, String ilbid, int howmany)
 		kabom.add("0"); kabom.add("NEW PROBLEM"); kabom.add("NO SOLUTION"); // no. , problem, solution
 		kabom.add(UNKNOWN_STRING); kabom.add("0"); // stock-code, stk-id
 		kabom.add("0"); kabom.add("0"); kabom.add("0"); // qty,uprice,subtotal
+		kabom.add(""); // stock-master struct
 		lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
 		lbhand.setDoubleClick_ListItems(newlb, woitem_dclicker); // refresh the double-clicker for added item
 	}
@@ -317,10 +317,17 @@ Listbox showWorkOrder_items(Object iob, Div iholder, String ilbid, int showtype,
 	prob = iob.get("problem_desc").split("::");
 	solut = iob.get("solution_desc").split("::");
 	stkcode = iob.get("parts_used").split("::");
+	
 	stkid = iob.get("parts_stkid").split("::");
 	qty = iob.get("parts_qty").split("::");
 	uprice = iob.get("parts_uprice").split("::");
 	} catch (Exception e) { return null; }
+
+	/*
+	stkid = r.get("order_stockid").split("::");
+	qty = r.get("order_qty").split("::");
+	uprice = r.get("order_uprice").split("::");
+	*/
 
 	for(i=0; i<prob.length; i++)
 	{
@@ -339,8 +346,8 @@ Listbox showWorkOrder_items(Object iob, Div iholder, String ilbid, int showtype,
 		kk = UNKNOWN_STRING; try { kk = stkcode[i]; } catch (Exception e) {}
 		kabom.add(kk);
 
-		kk = "0"; try { kk = stkid[i]; } catch (Exception e) {}
-		kabom.add(kk);
+		istkid = "0"; try { istkid = stkid[i]; } catch (Exception e) {}
+		kabom.add(istkid);
 
 		kk = ""; try { kk = qty[i]; } catch (Exception e) {}
 		kabom.add(kk);
@@ -349,6 +356,8 @@ Listbox showWorkOrder_items(Object iob, Div iholder, String ilbid, int showtype,
 		kabom.add(kk);
 
 		kabom.add("0");
+
+		kabom.add(getStockMasterStruct(istkid));
 
 		lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
 		kabom.clear();
@@ -368,6 +377,101 @@ Listbox showWorkOrder_items(Object iob, Div iholder, String ilbid, int showtype,
 	}
 
 	return newlb;
+}
+
+/**
+ * Extract work-order items and put into woitemsprint for BIRT to process template
+ * @param pWorkorder work-order voucher no.
+ */
+void expPrintParts_workorder(String pWorkorder)
+{
+	r = getWorkOrderRec(pWorkorder); // parse and insert items into woitemsprint
+	if(r == null)
+	{
+		guihand.showMessageBox("ERR: cannot get work-order record from database.. contact technical");
+		return;
+	}
+	
+	sqlstm = "delete from woitemsprint where wo_parent=" + pWorkorder;
+	sqlhand.rws_gpSqlExecuter(sqlstm); // delete prev entries in woitemsprint
+
+	Sql sql = wms_Sql();
+	Connection thecon = sql.getConnection();
+	PreparedStatement pstmt = thecon.prepareStatement("insert into woitemsprint (problem_desc,unit_price,qty,stock_code,stk_id,wo_parent,solution_desc) values " +
+		"(?,?,?,?,?,?,?);");
+
+	prob = solut = stkid = qty = uprice = null;
+
+	try {
+	prob = r.get("problem_desc").split("::");
+	solut = r.get("solution_desc").split("::");
+	//stkcode = r.get("parts_used").split("::");
+	stkid = r.get("parts_stkid").split("::");
+	qty = r.get("parts_qty").split("::");
+	uprice = r.get("parts_uprice").split("::");
+	} catch (Exception e) { return null; }
+
+	if(prob == null) return;
+
+	for(i=0; i<prob.length; i++)
+	{
+		pstmt.setString(1,prob[i]);
+		iuprice = 0.0; try { uprc = Float.parseFloat(uprice[i]); } catch (Exception e) {}
+		pstmt.setFloat(2,uprc);
+		iqty = 0; try { iqty = Integer.parseInt(qty[i]); } catch (Exception e) {}
+		pstmt.setInt(3,iqty);
+
+		// INEFFICIENT codes to get stock_code from stockmasterdetails - RECODE
+		// actually can use stkcode[] , but just incase user go and change it
+		istkid = 0; try { istkid = Integer.parseInt(stkid[i]); } catch (Exception e) {}
+		sr = null; try { sr = sqlhand.rws_gpSqlFirstRow("select Stock_Code from StockMasterDetails where ID=" + istkid); }  catch (Exception e) {}
+		sc = (sr == null) ? UNKNOWN_STRING : sr.get("Stock_Code");
+		pstmt.setString(4,sc);
+		
+		pstmt.setInt(5,istkid);
+
+		pstmt.setInt(6,Integer.parseInt(pWorkorder));
+		isolut = ""; try { isolut = solut[i]; } catch (Exception e) {}
+		pstmt.setString(7,isolut);
+		pstmt.addBatch();
+	}
+	pstmt.executeBatch(); pstmt.close(); sql.close();
+}
+
+/**
+ * Print work-order parts bill - BIRT
+ * Uses button printwo_b
+ * @param pWorkorder work-order voucher no.
+ * @param pType   unused for now
+ */
+void printParts_WO_birt(String pWorkorder, String pType)
+{
+	bfn = "rlm/woitems_bill_v1.rptdesign";
+
+	thesrc = birtURL() + bfn + "&woid=" + pWorkorder + "&wopref=" + WORKORDER_PREFIX;
+
+	if(woitemsprintholder.getFellowIfAny("woitemsprintframe") != null) woitemsprintframe.setParent(null);
+	Iframe newiframe = new Iframe();
+	newiframe.setId("woitemsprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
+	newiframe.setSrc(thesrc); newiframe.setParent(woitemsprintholder);
+	woitemsprintout.open(printwo_b);
+}
+
+/**
+ * Print WO in BIRT, uses WORKORDER_PREFIX as wopref param to BIRT. Concat with iwo to form full WO ID
+ * Uses popup : woprintoutput, and button : printwo_b
+ * @param iwo selected WO
+ */
+void printWO_birt(String iwo)
+{
+	bfn = "rlm/workorder_v1.rptdesign";
+	thesrc = birtURL() + bfn + "&woid=" + iwo + "&wopref=" + WORKORDER_PREFIX;
+
+	if(woprintholder.getFellowIfAny("woprintframe") != null) woprintframe.setParent(null);
+	Iframe newiframe = new Iframe();
+	newiframe.setId("woprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
+	newiframe.setSrc(thesrc); newiframe.setParent(woprintholder);
+	woprintoutput.open(printwo_b);
 }
 
 /**

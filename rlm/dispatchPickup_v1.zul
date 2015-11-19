@@ -10,7 +10,7 @@
 <zscript src="rglobal/reservatorFuncs.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "Dispatch - Pickup Management";
+MYTITLE = "DISPATCH / PICKUP MANAGEMENT";
 MYVERSION = "v0.1";
 MYPANEL = "pcikupdisppanel";
 /**
@@ -495,7 +495,7 @@ DNE  : DONE status
 	.wbo { font-size:9px;color:#ffffff;font-weight:bold }
 </style>
 
-<div width="${PANEL_WIDTH}">
+<div width="${PANEL_WIDTH}" style="opacity: 0.8;" >
 <panel id="${MYPANEL}" title="${MYTITLE} ${MYVERSION}" border="none" collapsible="true" closable="true" >
 <panelchildren style="background:#2E2E2D">
 

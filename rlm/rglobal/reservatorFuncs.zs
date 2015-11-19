@@ -10,27 +10,14 @@ Object getReservation_rec(String iwhat)
 
 WEEKLY_LOOKBACK = -2;
 WEEKLY_DAYS_TOSHOW = 14;
-WEEKLY_DIV_STYLE = "background:#5C7D91;overflow-y:auto";
-SUNDAY_DIV_STYLE = "background:#E35610;overflow-y:auto";
+WEEKLY_DIV_STYLE = "background:#5C7D91";
+SUNDAY_DIV_STYLE = "background:#E35610";
 SUNDAY_DIV_WIDTH = "100px";
 WEEKLY_DIV_WIDTH = "360px";
 WEEKLY_DIV_HEIGHT = "350px";
 
 void drawWeekdaysCalendar(Datebox idate, Datebox iedate, Label imonlbl, Div iholder)
 {
-	/*
-		Calendar cal = Calendar.getInstance();
-		cal.setTime(idate.getValue());
-
-		cal.add(Calendar.DATE,-7); // last week
-		tstart = dtf2.format(cal.getTime());
-
-		sday = cal.get(Calendar.DAY_OF_WEEK); // get 1st of the month falls on which day
-		cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH) ); // get max days per month
-		tend = dtf2.format(cal.getTime());
-		eday = cal.get(Calendar.DAY_OF_MONTH) + 1;
-	*/
-
 	String[] weekname = { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
 	Calendar stdate = Calendar.getInstance();
 	Calendar eddate = Calendar.getInstance();
@@ -54,7 +41,7 @@ void drawWeekdaysCalendar(Datebox idate, Datebox iedate, Label imonlbl, Div ihol
 		wkn = stdate.get(Calendar.DAY_OF_WEEK);
 
 		dstyle = WEEKLY_DIV_STYLE; dwidth = WEEKLY_DIV_WIDTH;
-		if(wkn == 7 || wkn == 1) { dstyle = SUNDAY_DIV_STYLE; }
+		if(wkn == 7 || wkn == 1) { dstyle = SUNDAY_DIV_STYLE; } // set SAT and SUN style
 
 		wdv = new Div(); wdv.setWidth(dwidth); wdv.setHeight(WEEKLY_DIV_HEIGHT); wdv.setStyle(dstyle);
 		wdv.setParent(mhbox);
@@ -261,3 +248,17 @@ void showDayReservation(String iday)
 //day_holder
 //alert( dtf2.format(glob_sel_date) );
 }
+
+	/*
+		overflow-y:auto
+		Calendar cal = Calendar.getInstance();
+		cal.setTime(idate.getValue());
+
+		cal.add(Calendar.DATE,-7); // last week
+		tstart = dtf2.format(cal.getTime());
+
+		sday = cal.get(Calendar.DAY_OF_WEEK); // get 1st of the month falls on which day
+		cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH) ); // get max days per month
+		tend = dtf2.format(cal.getTime());
+		eday = cal.get(Calendar.DAY_OF_MONTH) + 1;
+	*/

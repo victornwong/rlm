@@ -8,7 +8,7 @@
 <zscript src="stockManf/stocklister.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "Stock Items";
+MYTITLE = "STOCK MASTER MANAGEMENT";
 MYVERSION = "v0.1";
 MYPANEL = "stkitmrlmpan1";
 /**
@@ -50,14 +50,44 @@ gridhand = new GridHandler(); ngfun = new NGfuncs(); rwsqlfun = new RWMS_sql();
 
 last_show_stockitems = 0;
 
-glob_sel_stock_code = glob_sel_stock_cat = glob_sel_groupcode = glob_sel_classcode = glob_sel_description = glob_sel_id = "";
+glob_sel_stock_code = glob_sel_stock_cat = glob_sel_groupcode = glob_sel_classcode = glob_sel_description = glob_sel_id = glob_sel_eqtmodel = "";
 
 /**
- * Call-back from stock-master listbox clicker - call from stocklister.stkitemdoubelclik() and stocklister.stkitemclik()
- * @param itarget the selected listitem object
+ * Call-back from stock-master listbox clicker - call from stocklister.stkitemclik()
+ * @param isel the selected listitem object
  */
-void stockItemListbox_callback(Object itarget)
+void stockmasterOnselect_callback(Object isel)
 {
+	glob_sel_stock_code = lbhand.getListcellItemLabel(isel,ITM_STOCKCODE);
+	glob_sel_description = lbhand.getListcellItemLabel(isel,ITM_DESCRIPTION);
+	glob_sel_stock_cat = lbhand.getListcellItemLabel(isel,ITM_CATEGORY);
+	glob_sel_groupcode = lbhand.getListcellItemLabel(isel,ITM_GROUP);
+	glob_sel_classcode = lbhand.getListcellItemLabel(isel,ITM_CLASS);
+	glob_sel_id = lbhand.getListcellItemLabel(isel,ITM_ID);
+}
+
+/**
+ * Call-back from stock-master listbox clicker - call from stocklister.stkitemdoubelclik()
+ * @param isel the selected listitem object
+ */
+void stockmasterDoubleclick_callback(Object isel)
+{
+	glob_sel_stock_code = lbhand.getListcellItemLabel(isel,ITM_STOCKCODE);
+	glob_sel_description = lbhand.getListcellItemLabel(isel,ITM_DESCRIPTION);
+	glob_sel_stock_cat = lbhand.getListcellItemLabel(isel,ITM_CATEGORY);
+	glob_sel_groupcode = lbhand.getListcellItemLabel(isel,ITM_GROUP);
+	glob_sel_classcode = lbhand.getListcellItemLabel(isel,ITM_CLASS);
+	glob_sel_eqtmodel = lbhand.getListcellItemLabel(isel,ITM_EQTMODEL);
+	glob_sel_id = lbhand.getListcellItemLabel(isel,ITM_ID);
+
+	e_stock_code_tb.setValue(glob_sel_stock_code);
+	e_description_tb.setValue(glob_sel_description);
+	e_stock_cat_cb.setValue(glob_sel_stock_cat);
+	e_groupcode_cb.setValue(glob_sel_groupcode);
+	e_classcode_cb.setValue(glob_sel_classcode);
+	e_product_detail_tb.setValue(glob_sel_eqtmodel);
+
+	editstockitem_pop.open(isel);
 }
 
 /**
@@ -67,11 +97,11 @@ void stockItemListbox_callback(Object itarget)
 void itemFunc(String iwhat)
 {
 	todaydate =  kiboo.todayISODateTimeString();
-	sqlstm = msgtext = "";
+	sqlstm = msgtext = thenag = "";
 	//refresh = false;
 	//unm = useraccessobj.username;
 	
-	Object[] newis = { n_stock_cat_cb, n_groupcode_cb, n_classcode_cb, n_stock_code_tb, n_description_tb } ;
+	Object[] newis = { n_stock_cat_cb, n_groupcode_cb, n_classcode_cb, n_stock_code_tb, n_description_tb, n_product_detail_tb } ;
 
 	if(iwhat.equals("insertitem_b")) // insert new stock-item, uses inputs from popup
 	{
@@ -82,16 +112,16 @@ void itemFunc(String iwhat)
 		}
 		else
 		{ 
-			if(stockCodeExist(dt[3])) // stock-code exists - return
+			if(stockCodeExist(dt[3],dt[0],dt[1],dt[2])) // stock-code exists - return
 			{
 				msgtext = "ERR: Stock-code already exist in database..";
 			}
 			else
 			{ // can insert new stock-code into db
-				sqlstm = "insert into StockMasterDetails (stock_cat,groupcode,classcode,stock_code,description,entrydate) values " +
-				"('" + dt[0] + "','" + dt[1] + "','" + dt[2] + "','" + dt[3] + "','" + dt[4] + "','" + todaydate + "');";
+				sqlstm = "insert into StockMasterDetails (stock_cat,groupcode,classcode,stock_code,description,entrydate,Product_Detail) values " +
+				"('" + dt[0] + "','" + dt[1] + "','" + dt[2] + "','" + dt[3] + "','" + dt[4] + "','" + todaydate + "','" + dt[5] + "');";
 
-				msgtext = "Item inserted into database..";
+				thenag = "Stock-code inserted into database..";
 			}
 		}
 	}
@@ -101,12 +131,13 @@ void itemFunc(String iwhat)
 		ngfun.clearUI_Field(newis);
 	}
 
-	Object[] upis = { e_stock_cat_cb, e_groupcode_cb, e_classcode_cb, e_stock_code_tb, e_description_tb };
+	Object[] upis = { e_stock_cat_cb, e_groupcode_cb, e_classcode_cb, e_stock_code_tb, e_description_tb, e_product_detail_tb };
 	if(iwhat.equals("updateitem_b")) // update stock-item
 	{
 		if(glob_sel_id.equals("")) return;
 		dt = ngfun.getString_fromUI(upis);
-		sqlstm = "update StockMasterDetails set Stock_Cat='" + dt[0] + "', GroupCode='" + dt[1] + "', ClassCode='" + dt[2] + "', Description='" + dt[4] + "' where ID=" + glob_sel_id;
+		sqlstm = "update StockMasterDetails set Stock_Cat='" + dt[0] + "', GroupCode='" + dt[1] + "', ClassCode='" + dt[2] + "', Description='" + dt[4] + "', Product_Detail='" + dt[5] + "' where ID=" + glob_sel_id;
+		thenag = "Stock-master updated..";
 	}
 
 	if(iwhat.equals("delitem_b")) // delete stock-item - usually admin to do this
@@ -138,6 +169,7 @@ void itemFunc(String iwhat)
 		refreshThings();
 	}
 	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
+	if(!thenag.equals("")) putNagText(thenag);
 }
 
 ]]>
@@ -165,11 +197,15 @@ void itemFunc(String iwhat)
 				</row>
 				<row style="${NEWSTOCKITEM_BACKGROUND}">
 					<label value="Stock-code" sclass="k9b" />
-					<textbox id="n_stock_code_tb" sclass="k9" width="99%" value="testa1" />
+					<textbox id="n_stock_code_tb" sclass="k9" width="99%" value="UNDEF" />
 				</row>
 				<row style="${NEWSTOCKITEM_BACKGROUND}">
 					<label value="Description" sclass="k9b" />
-					<textbox id="n_description_tb" sclass="k9" width="99%" value="Test A punya 1 barang" />
+					<textbox id="n_description_tb" sclass="k9" width="99%" value="NO DESCRIPTION" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Eqt Type / Model" sclass="k9b" />
+					<textbox id="n_product_detail_tb" sclass="k9" width="99%" multiline="true" height="60px" value="NO EQUIPMENT TYPE / MODEL" />
 				</row>
 				<row style="${NEWSTOCKITEM_BACKGROUND}">
 					<separator />
@@ -211,6 +247,10 @@ void itemFunc(String iwhat)
 				<row style="${NEWSTOCKITEM_BACKGROUND}">
 					<label value="Description" sclass="k9b" />
 					<textbox id="e_description_tb" sclass="k9" width="99%" multiline="true" height="60px" />
+				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}">
+					<label value="Eqt Type / Model" sclass="k9b" />
+					<textbox id="e_product_detail_tb" sclass="k9" width="99%" multiline="true" height="60px" />
 				</row>
 				<row style="${NEWSTOCKITEM_BACKGROUND}">
 					<separator />
@@ -290,12 +330,19 @@ void itemFunc(String iwhat)
 			<button id="admin_b" label="ADMIN" sclass="k9mo" style="color:#EF1E1E" visible="false" onClick="adminpop.open(self)" />
 		</hbox>
 	</div>
+		<separator height="3px" />
+		<div id="nagbar" style="${NAG_BAR_STYLE}">
+		<hbox>
+			<separator width="10px" />
+			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
+		</hbox>
+	</div>
 	<separator height="3px" />
 	<div sclass="shadowbox" style="background:#AEC622">
 		<label id="stockmaster_breadcrum" sclass="subhead1" />
 		<div id="stockitems_holder" />
 	</div>
-
+	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
 <zscript>
 <![CDATA[
 populateDropdowns();

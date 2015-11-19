@@ -94,22 +94,8 @@ void populateDropdowns()
  */
 void refreshThings()
 {
-	populateDropdowns();
 	listStockItems(last_show_stockitems);
-}
-
-/**
- * Check new stock-code exist in StockMasterDetails.stock_code
- * @param  :istk stock_code to check
- * @return :false not exist, true for exist
- */
-boolean stockCodeExist(String istk)
-{
-	retval = false;
-	cq = "select stock_code from StockMasterDetails where stock_code='" + istk + "' limit 1;";
-	r = sqlhand.rws_gpSqlFirstRow(cq);
-	if(r != null) retval = true; // stock-code exists - return
-	return retval;
+	populateDropdowns();
 }
 
 /**

@@ -12,7 +12,7 @@
 <zscript src="stockManf/outboundlister.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "WHSTKOUT";
+MYTITLE = "PARTS SALES / REQUEST (WHSTKOUT)";
 MYVERSION = "v0.1";
 MYPANEL = "outboundreqpanel";
 /**
@@ -56,7 +56,7 @@ ISACTIVE_SUPPLIER_LOADING = ""; // set this in other modu to get active supplier
 
 last_list_type = 0;
 glob_sel_outitem = null;
-glob_sel_stkout = glob_sel_arcode = glob_stkout_status = glob_stkout_stage = "";
+glob_sel_stkout = glob_sel_arcode = glob_stkout_status = glob_stkout_stage = glob_stkout_type = "";
 
 //items_need_update = false;
 
@@ -67,17 +67,17 @@ void togButts(boolean iwhat)
 }
 
 /**
- * Call-back from stock-master listbox clicker - call from stocklister.stkitemdoubelclik() and stocklister.stkitemclik()
+ * Call-back from stock-master listbox clicker - call from stocklister.stkitemclik()
  * @param itarget the selected listitem object
  */
-void stockItemListbox_callback(Object itarget)
+void stockmasterOnselect_callback(Object itarget)
 {
 	liststkmaster_pop.close();
 	obitemslb = outitems_holder.getFellowIfAny("outitems_lb");
 	if( obitemslb == null) return;
 
-	glob_sel_stock_code = lbhand.getListcellItemLabel(itarget,0);
-	glob_sel_description = lbhand.getListcellItemLabel(itarget,1);
+	glob_sel_stock_code = lbhand.getListcellItemLabel(itarget,ITM_STOCKCODE);
+	glob_sel_description = lbhand.getListcellItemLabel(itarget,ITM_DESCRIPTION);
 	glob_sel_id = lbhand.getListcellItemLabel(itarget,ITM_ID);
 
 	try
@@ -86,7 +86,11 @@ void stockItemListbox_callback(Object itarget)
 		lbhand.setListcellItemLabel(isel,OBITM_STKID_POS, glob_sel_id );
 		lbhand.setListcellItemLabel(isel,OBITM_STKCODE_POS, glob_sel_stock_code );
 		lbhand.setListcellItemLabel(isel,OBITM_DESC_POS, glob_sel_description );
+		lbhand.setListcellItemLabel(isel,OBITM_STRUCT_POS,getStockMasterStruct(glob_sel_id));
 	} catch (Exception e) {}
+}
+void stockmasterDoubleclick_callback(Object isel)
+{
 }
 
 /**
@@ -134,6 +138,7 @@ void outbound_CallBack(Object isel)
 	glob_sel_stkout = lbhand.getListcellItemLabel(isel,OUTB_ORIGID_POS);
 	glob_stkout_status = lbhand.getListcellItemLabel(isel,OUTB_STATUS_POS);
 	glob_stkout_stage = lbhand.getListcellItemLabel(isel,OUTB_STAGE_POS);
+	glob_stkout_type = lbhand.getListcellItemLabel(isel,OUTB_TYPE_POS);
 	showOutboundMeta(glob_sel_stkout);
 }
 
@@ -163,7 +168,7 @@ void workOrder_dc_callBack(Object isel)
 void outboundFunc(String iwhat)
 {
 	todaydate =  kiboo.todayISODateTimeString();
-	sqlstm = msgtext = nagtext = "";
+	sqlstm = msgtext = thenag = "";
 	renum = false;
 	unm = "tester";
 	try { unm = useraccessobj.username; } catch (Exception e) {}
@@ -243,12 +248,12 @@ void outboundFunc(String iwhat)
 		if(iwhat.equals("remitem_b")) // remove items
 		{
 			removeItemcodes(outitems_holder,"outitems_lb");
-			nagtext = "Select items removed..";
+			thenag = "Select items removed..";
 		}
 
 		if(iwhat.equals("saveoitems_b")) // save items into db
 		{
-			nagtext = (saveOutboundItems(glob_sel_stkout,obitemslb)) ? "OK: items saved.." : "ERR: items not saved or no items";
+			thenag = (saveOutboundItems(glob_sel_stkout,obitemslb)) ? "OK: items saved.." : "ERR: items not saved or no items";
 		}
 
 		if(iwhat.equals("updoutitem_b")) // update the outbound item - call from pop-up
@@ -279,12 +284,14 @@ void outboundFunc(String iwhat)
 			if(Messagebox.show("This will delete the selected outbound entry", "Are you sure?",
 				Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
 
-			msgtext = "BOOM.. deleted.. you wish";
+			msgtext = "TODO: have to check outbound STKOUT stage .. before deleting";
 		}
 
 		if(iwhat.equals("printpartsreq_b")) // print parts-request, for front-desk as cash-sales too
 		{
-			expPrintParts_salesorder(glob_sel_stkout);
+			expPrintParts_salesorder(glob_sel_stkout); // extract stock-out items to table
+			printPartsReq_birt(glob_sel_stkout, glob_stkout_type);
+
 		}
 	}
 
@@ -296,7 +303,7 @@ void outboundFunc(String iwhat)
 		listOutbounds(last_list_type);
 	}
 	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
-	if(!nagtext.equals("")) putNagText(nagtext);
+	if(!thenag.equals("")) putNagText(thenag);
 }
 
 ]]>
@@ -493,6 +500,13 @@ void outboundFunc(String iwhat)
 		<div id="outbounds_holder" />
 	</div>
 	<separator height="3px" />
+		<div id="nagbar" style="${NAG_BAR_STYLE}">
+		<hbox>
+			<separator width="5px" />
+			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
+		</hbox>
+	</div>
+	<separator height="3px" />
 	<div id="workarea" sclass="shadowbox" style="background:#2F6B9C" visible="false">
 		<hbox>
 			<div id="metaarea" sclass="shadowbox" style="background:#8B0103">
@@ -580,12 +594,6 @@ void outboundFunc(String iwhat)
 		</hbox>
 	</div>
 	<separator height="3px" />
-	<div id="nagbar" style="${NAG_BAR_STYLE}">
-		<hbox>
-			<separator width="10px" />
-			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
-		</hbox>
-	</div>
 	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
 <zscript>
 <![CDATA[

@@ -11,7 +11,7 @@
 <zscript src="stockManf/polister.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "Inventory Management";
+MYTITLE = "INVENTORY MANAGEMENT";
 MYVERSION = "v0.1";
 MYPANEL = "invnetorypanel";
 /**

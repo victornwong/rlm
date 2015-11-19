@@ -14,7 +14,7 @@
 <zscript src="outboundKanbClass.zs" />
 <zscript>
 <![CDATA[
-MYTITLE = "WH - Outbound Backlogs";
+MYTITLE = "PARTS SALES / REQUEST - BACKLOGS (WHSTKOUT)";
 MYVERSION = "v0.1";
 MYPANEL = "kanbanpanel2";
 /**
@@ -399,9 +399,28 @@ void refreshPipes()
 	populateOutbounds();
 }
 
+/**
+ * 
+ * @param pStkout [description]
+ */
+void printWHsktout_birt(String pStkout)
+{
+	bfn = "rlm/stkoutpicklist_v1.rptdesign";
+	thesrc = birtURL() + bfn + "&obn=" + pStkout + "&obprefix=" + STKOUT_PREFIX;
+
+	if(whstkout_printholder.getFellowIfAny("whstkoutprintframe") != null) whstkoutprintframe.setParent(null);
+	Iframe newiframe = new Iframe();
+	newiframe.setId("whstkoutprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
+	newiframe.setSrc(thesrc); newiframe.setParent(whstkout_printholder);
+	whstkout_printoutput.open(stkoutlist_prt_b);
+}
 
 ]]>
 </zscript>
+
+<popup id="whstkout_printoutput">
+	<div id="whstkout_printholder" width="700px" />
+</popup>
 
 <popup id="showqueueitem_menu">
 	<div sclass="shadowbox" style="background:#B1EC32">
@@ -667,7 +686,7 @@ void refreshPipes()
 			<separator height="3px" />
 			<hbox>
 				<button label="TODO: Show items location" sclass="k9mo" />
-				<button label="TODO: Print picked items" sclass="k9mo" />
+				<button id="stkoutlist_prt_b" label="Print picked items" sclass="k9mo" onClick="printWHsktout_birt(glob_sel_outbound)" />
 				<button label="Order queue items" sclass="k9mo" onClick="showqueueitem_menu.open(self)" />
 			</hbox>
 			<separator height="3px" />

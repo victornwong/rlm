@@ -359,6 +359,7 @@ Datebox gpMakeDatebox(Object iparent, String iid, String iformat, String istyle)
  */
 void fillListbox_uniqField(String itbn, String ifl, Listbox ilb) throws java.sql.SQLException
 {
+	ilb.getItems().clear();
 	ListboxHandler lbhand = new ListboxHandler();
 	String sqlstm = "select distinct " + ifl + " from " + itbn;
 	ArrayList r = gpWMS_GetRows(sqlstm);
@@ -662,3 +663,49 @@ void nagtimerFunc()
 	if(nagcount > 2) nagtext.setValue(""); 
 }
 
+/**
+ * Get dispatch/pickup order no. link to work-order
+ * @param iwo : the work-order no.
+ * @return : dispatch/pickup no. else ""
+ */
+String getDispatch_byWorkOrder(String iwo)
+{
+	sqlstm = "select origid from pickupdisp where job_id=" + iwo;
+	r = sqlhand.rws_gpSqlFirstRow(sqlstm);
+	return (r == null) ? "" : r.get("origid").toString();
+}
+
+/**
+ * Check new stock-code exist in StockMasterDetails.stock_code
+ * @param  :istk stock_code to check
+ * @param  icategory [description]
+ * @param  igroup    [description]
+ * @param  iclass    [description]
+ * @return :false not exist, true for exist
+ */
+boolean stockCodeExist(String istk, String icategory, String igroup, String iclass)
+{
+	retval = false;
+	cq = "select stock_code from StockMasterDetails where stock_code='" + istk + "' " +
+	"and Stock_Cat='" + icategory + "' and GroupCode='" + igroup + "' and ClassCode='" + iclass + "' limit 1;";
+	r = sqlhand.rws_gpSqlFirstRow(cq);
+	if(r != null) retval = true; // stock-code exists - return
+	return retval;
+}
+
+/**
+ * Get stock-master struct. category>group>class
+ * @param  istkid stock-id
+ * @return        struct string
+ */
+String getStockMasterStruct(String istkid)
+{
+	retval = "";
+	sqlstm = "select Stock_Cat,GroupCode,ClassCode from StockMasterDetails where ID=" + istkid;
+	d = sqlhand.rws_gpSqlFirstRow(sqlstm);
+	if(d != null)
+	{
+		retval = kiboo.checkNullString(d.get("Stock_Cat")) + ">" + kiboo.checkNullString(d.get("GroupCode")) + ">" + kiboo.checkNullString(d.get("ClassCode"));
+	}
+	return retval;
+}
