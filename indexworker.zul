@@ -71,37 +71,49 @@ void runModule(Object apmod, String iprefix)
 	activateModule(mainPlayground,mydivname,apfn,newid,apmod.parameters,useraccessobj);
 }
 
-void runThings(String iwhat)
+STOCKMASTERMAN_MM = 1; SUPPLIERMAN_MM = 2; CUSTOMERMAN_MM = 3; INBOUNDSTK_MM = 4;
+PARTSRET_MM = 5; OUTBOUNDSTK_MM = 6; PURCHASEREQ_MM = 7; INVENTORY_MM = 8;
+OBKANBAN_MM = 9; WORKORDER_MM = 10; WOKANBAN_MM = 11; WOFULFILLMENT_MM = 12;
+XMLFORMMAN_MM = 13; USERCONTROL_MM = 14; DISPATCH_MM = 15; STATICLOOKUP_MM = 16;
+
+HashMap mainMenuModules = new HashMap();
+mainMenuModules.put(STOCKMASTERMAN_MM,"rlm/stockMasterMan_v1.zul");
+mainMenuModules.put(SUPPLIERMAN_MM,"rlm/supplierManPanel_v1.zul");
+mainMenuModules.put(CUSTOMERMAN_MM,"rlm/customerMan_v1.zul");
+mainMenuModules.put(INBOUNDSTK_MM,"rlm/inboundStock_v1.zul");
+mainMenuModules.put(PARTSRET_MM,"rlm/whPartsReturn_v1.zul");
+mainMenuModules.put(OUTBOUNDSTK_MM,"rlm/outboundReq_v1.zul");
+mainMenuModules.put(PURCHASEREQ_MM,"rlm/purchaseOrderNG_v1.zul");
+mainMenuModules.put(INVENTORY_MM,"rlm/inventoryMan_v1.zul");
+mainMenuModules.put(OBKANBAN_MM,"rlm/outboundKanban_v1.zul");
+mainMenuModules.put(WORKORDER_MM,"rlm/workOrderMan_v1.zul");
+mainMenuModules.put(WOKANBAN_MM,"rlm/workorderKanban_v1.zul");
+mainMenuModules.put(WOFULFILLMENT_MM,"rlm/woFullfilment_v1.zul");
+mainMenuModules.put(XMLFORMMAN_MM,"adminmodules/xmlformTemplate_v1.zul");
+mainMenuModules.put(USERCONTROL_MM,"adminmodules/usercontroller.zul");
+mainMenuModules.put(DISPATCH_MM,"rlm/dispatchPickup_v1.zul");
+mainMenuModules.put(STATICLOOKUP_MM,"adminmodules/staticlookupman.zul");
+
+/**
+ * Uses hashmap mainMenuModules to determine which module to run. Call by specifying the menu-index *_MM
+ * @param iwhat menu-index *_MM
+ */
+void runThings(int iwhat)
 {
-	Object[] menuspop = { mainmenupop,warehousemenupop,techmenupop,settingmenupop,adminmenupop };
+	Object[] menuspop = { mainmenupop,warehousemenupop,techmenupop,settingmenupop,adminmenupop, financemenupop };
 	for(i=0;i<menuspop.length;i++)
 	{
 		menuspop[i].close();
 	}
-	apfn = uParams = "";
+	uParams = "";
+	apfn = mainMenuModules.get(iwhat);
 
-	if(iwhat.equals("stockmaster_m")) apfn = "rlm/stockMasterMan_v1.zul";
-	if(iwhat.equals("suppliers_m")) apfn = "rlm/supplierManPanel_v1.zul";
-	if(iwhat.equals("customers_m")) apfn = "rlm/customerMan_v1.zul";
-	if(iwhat.equals("inbound_m")) apfn = "rlm/inboundStock_v1.zul";
-	if(iwhat.equals("partreturn_m")) apfn = "rlm/whPartsReturn_v1.zul";
-	if(iwhat.equals("outbound_m")) apfn = "rlm/outboundReq_v1.zul";
-	if(iwhat.equals("purchaseorder_m")) apfn = "rlm/purchaseOrderNG_v1.zul";
-	if(iwhat.equals("stocklist_m")) apfn = "rlm/inventoryMan_v1.zul";
-	if(iwhat.equals("pickpack_m")) apfn = "rlm/outboundKanban_v1.zul";
-	if(iwhat.equals("workorder_m")) apfn = "rlm/workOrderMan_v1.zul";
-	if(iwhat.equals("wokanban_m")) apfn = "rlm/workorderKanban_v1.zul";
-	if(iwhat.equals("wofulfil_m")) apfn = "rlm/woFullfilment_v1.zul";
-
-	if(iwhat.equals("xmlform_m")) apfn = "adminmodules/xmlformTemplate_v1.zul";
-	if(iwhat.equals("stlookup_m")) { apfn = "adminmodules/staticlookupman.zul"; uParams = "lu=1"; }
-	if(iwhat.equals("usercontrol_m")) apfn = "adminmodules/usercontroller.zul";
-	if(iwhat.equals("wofulfil_m")) apfn = "rlm/woFullfilment_v1.zul";
-	if(iwhat.equals("dispickup_m")) apfn = "rlm/dispatchPickup_v1.zul";
+	if(iwhat == 17) // special handling : static-lookup management
+		uParams = "lu=1"; // param: lookup parent
 
 	if(!apfn.equals(""))
 	{
-		newid = iwhat+moduleCounter.toString();
+		newid = iwhat.toString()+ "_" + moduleCounter.toString();
 		moduleCounter++;
 		Include newinclude = new Include();
 		newinclude.setId(newid);
@@ -154,84 +166,93 @@ All codes written by Victor Wong otherwise stated else
 		 box-shadow: 0px 0px 10px rgba(0,0,0,.8);
 		z-index: 100;
 	}
+
+	.wbo { font-size:9px;color:#ffffff;font-weight:bold }
 </style>
 
-<popup id="mainmenupop" style="opacity:0.7">
+<popup id="mainmenupop" style="opacity:0.8">
 	<vbox>
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="workorder_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Work Order" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="workorder_m" onClick="runThings(WORKORDER_MM)">
+		<label sclass="wbo" value="Work Order" /></div>
 
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="outbound_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Parts Sales / Requests" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="outbound_m" onClick="runThings(OUTBOUNDSTK_MM)">
+		<label sclass="wbo" value="Parts Sales / Requests" /></div>
 
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="dispickup_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Dispatch / Pickup" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="dispickup_m" onClick="runThings(DISPATCH_MM)">
+		<label sclass="wbo" value="Dispatch / Pickup" /></div>
 
 	</vbox>
 </popup>
 
-<popup id="warehousemenupop" style="opacity:0.7">
+<popup id="warehousemenupop" style="opacity:0.8">
 	<vbox>
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="pickpack_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="WH Outbound Backlogs" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="pickpack_m" onClick="runThings(OBKANBAN_MM)">
+		<label sclass="wbo" value="WH Outbound Backlogs" /></div>
 
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="inbound_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Inbound Goods Receival" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="inbound_m" onClick="runThings(INBOUNDSTK_MM)">
+		<label sclass="wbo" value="Inbound Goods Receival" /></div>
 
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="partreturn_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Parts Return" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="partreturn_m" onClick="runThings(PARTSRET_MM)" visible="false">
+		<label sclass="wbo" value="Parts Return" /></div>
 
 		<div sclass="shadowbox" style="${DIVBUTTONSEPARATORSTYLE}" width="${DIVBUTTONWIDTH}" />
 
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="purchaseorder_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Purchase Order" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="purchaseorder_m" onClick="runThings(PURCHASEREQ_MM)">
+		<label sclass="wbo" value="Purchase Order" /></div>
 
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="stocklist_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Inventory" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="stocklist_m" onClick="runThings(INVENTORY_MM)">
+		<label sclass="wbo" value="Inventory" /></div>
 
 	</vbox>
 </popup>
 
-<popup id="settingmenupop" style="opacity:0.7">
+<popup id="settingmenupop" style="opacity:0.8">
 	<vbox>
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="customers_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Customers" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="customers_m" onClick="runThings(CUSTOMERMAN_MM)">
+		<label sclass="wbo" value="Customers" /></div>
 
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="suppliers_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Suppliers" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="suppliers_m" onClick="runThings(SUPPLIERMAN_MM)">
+		<label sclass="wbo" value="Suppliers" /></div>
 
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="stockmaster_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Stock Master" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="stockmaster_m" onClick="runThings(STOCKMASTERMAN_MM)">
+		<label sclass="wbo" value="Stock Master" /></div>
 	</vbox>
 </popup>
 
-<popup id="techmenupop" style="opacity:0.7">
+<popup id="techmenupop" style="opacity:0.8">
 	<vbox>
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="wofulfil_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Work Order Fulfillment" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="wofulfil_m" onClick="runThings(WOFULFILLMENT_MM)">
+		<label sclass="wbo" value="Work Order Fulfillment" /></div>
 
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="wokanban_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Work Order Backlogs" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="wokanban_m" onClick="runThings(WOKANBAN_MM)">
+		<label sclass="wbo" value="Work Order Backlogs" /></div>
 	</vbox>
 </popup>
 
-<popup id="utilitymenupop" style="opacity:0.7">
+<popup id="utilitymenupop" style="opacity:0.8">
 	<vbox>
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="chkstockmaster_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Check stock-master" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="chkstockmaster_m" onClick="runThings(0)">
+		<label sclass="wbo" value="Check stock-master" /></div>
 	</vbox>
 </popup>
 
 <popup id="adminmenupop">
 	<vbox>
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="usercontrol_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Users" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="usercontrol_m" onClick="runThings(USERCONTROL_MM)">
+		<label sclass="wbo" value="Users" /></div>
 
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="stlookup_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="Static Lookups" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="stlookup_m" onClick="runThings(STATICLOOKUP_MM)">
+		<label sclass="wbo" value="Static Lookups" /></div>
 	
-		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="xmlform_m" onClick="runThings(self.getId())">
-		<label sclass="k9mo" style="color:#ffffff" value="XML-Form" /></div>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="xmlform_m" onClick="runThings(XMLFORMMAN_MM)">
+		<label sclass="wbo" value="XML-Form" /></div>
+	</vbox>
+</popup>
+
+<popup id="financemenupop">
+	<vbox>
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="purchaseorder_m2" onClick="runThings(PURCHASEREQ_MM)">
+		<label sclass="wbo" value="Purchase Order" /></div>
 	</vbox>
 </popup>
 
@@ -253,6 +274,10 @@ All codes written by Victor Wong otherwise stated else
 			<label style="${MAINMENU_STYLE}" value="Warehouse" onClick="warehousemenupop.open(self)" />
 		</div>
 
+		<div style="${DIVBUTTONSTYLE2};padding:3px" onClick="financemenupop.open(self)">
+			<label style="${MAINMENU_STYLE}" value="Finance" />
+		</div>
+
 		<div style="${DIVBUTTONSTYLE2};padding:3px" onClick="utilitymenupop.open(self)">
 			<label style="${MAINMENU_STYLE}" value="Utilities" />
 		</div>
@@ -268,7 +293,7 @@ All codes written by Victor Wong otherwise stated else
 		<separator width="10px" />
 
 		<div style="background:#EF1212;padding:3px">
-			<label style="font-weight:bold" value="ADMIN" onClick="adminmenupop.open(self)" visible="true" />
+			<label id="adminbut" style="font-weight:bold" value="ADMIN" onClick="adminmenupop.open(self)" visible="false" />
 		</div>
 
 	</hbox>
@@ -286,6 +311,12 @@ All codes written by Victor Wong otherwise stated else
 
 <zscript>
 <![CDATA[
+if(useraccessobj.accesslevel == 9)
+{
+	partreturn_m.setVisible(true);
+	adminbut.setVisible(true);
+}
+
 /*
 style="overflow-y:inherit;overflow-x:hidden;height:650px;width:1024px;border:0px"
 */

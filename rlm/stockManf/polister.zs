@@ -169,14 +169,11 @@ Object[] digpoitemshds =
 	new listboxHeaderWidthObj("UPrice",false,"60px"),
 	new listboxHeaderWidthObj("exhrate",false,"60px"),
 	new listboxHeaderWidthObj("curcode",false,"60px"),
+	new listboxHeaderWidthObj("Struct",true,""),
 };
-SML_POITEM_STKID = 0;
-SML_POITEM_STOCKCODE = 1;
-SML_POITEM_DESC = 2;
-SML_POITEM_QTY = 3;
-SML_POITEM_UPRICE = 4;
-SML_POITEM_EXCHANGERATE = 5;
-SML_POITEM_CURCODE = 6;
+SML_POITEM_STKID = 0; SML_POITEM_STOCKCODE = 1; SML_POITEM_DESC = 2;
+SML_POITEM_QTY = 3; SML_POITEM_UPRICE = 4; SML_POITEM_EXCHANGERATE = 5;
+SML_POITEM_CURCODE = 6; SML_POITEM_STRUCT = 7;
 
 class diggpoitemsdclick implements org.zkoss.zk.ui.event.EventListener
 {
@@ -211,6 +208,7 @@ void digloadPOitems(Div iholder, int ipo)
 		for(d : r)
 		{
 			ngfun.popuListitems_Data(kabom,fl,d);
+			kabom.add( getStockMasterStruct(d.get("stock_code").toString()) );
 			lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
 			kabom.clear();
 		}
@@ -226,18 +224,17 @@ void digloadPOitems(Div iholder, int ipo)
 void viewPO_small(String ipo)
 {
 	kpo = ""; try { kpo = ipo.substring( PO_PREFIX.length(), ipo.length() ); } catch (Exception e) { return; } // extract PO voucher no.
-	r = getPurchaseReqRec(kpo);
+	r = null;
+	try { r = getPurchaseReqRec(kpo); } catch (Exception e) { return; }
 	if(r == null) return;
 
-	kwin = ngfun.vMakeWindow(windowsholder,ipo, "1", "center", "500px", "");
+	kwin = ngfun.vMakeWindow(windowsholder,ipo, "1", "center", "600px", "");
 
-	smy = "Vendor: " + r.get("supplier_name") +
-	"\nAPCODE: " + kiboo.checkNullString(r.get("APCode")) +
-	"\nDated: " + kiboo.dtf2.format(r.get("datecreated")) + " Approved: " + ((r.get("approvedate") != null) ? kiboo.dtf2.format(r.get("approvedate")) : "-") +
+	smy = "[APCODE: " + kiboo.checkNullString(r.get("APCode")) + "] Vendor: " + r.get("supplier_name") +
+	"\nDated: " + kiboo.dtf2.format(r.get("datecreated")) + " -- Approved: " + ((r.get("approvedate") != null) ? kiboo.dtf2.format(r.get("approvedate")) : "-") +
 	"\nNotes: " + kiboo.checkNullString(r.get("notes"));
 
 	itmh = new Div(); itmh.setParent(kwin); itmh.setSclass("shadowbox"); itmh.setStyle("background:#ED400E");
 	kk = ngfun.gpMakeLabel(itmh,"",smy,""); kk.setMultiline(true); kk.setStyle("color:#ffffff");
 	digloadPOitems(itmh, Integer.parseInt(kpo)); // polister.zs
 }
-

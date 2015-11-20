@@ -709,3 +709,30 @@ String getStockMasterStruct(String istkid)
 	}
 	return retval;
 }
+
+String getStockMasterStruct_withstockcode(String istkid)
+{
+	retval = "";
+	sqlstm = "select Stock_Cat,GroupCode,ClassCode,Stock_Code from StockMasterDetails where ID=" + istkid;
+	d = sqlhand.rws_gpSqlFirstRow(sqlstm);
+	if(d != null)
+	{
+		retval = kiboo.checkNullString(d.get("Stock_Cat")) + ">" + kiboo.checkNullString(d.get("GroupCode")) + ">" + 
+		kiboo.checkNullString(d.get("ClassCode")) + "> " + kiboo.checkNullString(d.get("Stock_Code"));
+	}
+	return retval;
+}
+
+void downloadFile(Div ioutdiv, String ifilename, String irealfn)
+{
+	File f = new File(irealfn);
+	fileleng = f.length();
+	finstream = new FileInputStream(f);
+	byte[] fbytes = new byte[fileleng];
+	finstream.read(fbytes,0,(int)fileleng);
+
+	AMedia amedia = new AMedia(ifilename, "xls", "application/vnd.ms-excel", fbytes);
+	Iframe newiframe = new Iframe();
+	newiframe.setParent(ioutdiv);
+	newiframe.setContent(amedia);
+}

@@ -189,7 +189,7 @@ boolean updatepipes_callBack(Object iobj, Object idropto)
 	if(drpipe_stage.equals("DONE")) // dropping order to DONE - minus from Balance
 	{
 		if(Messagebox.show("Please double-check all items for this order, inventory will be posted ", "Are you sure?",
-			Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+			Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return false;
 
 		qtydifference = -1;
 	}

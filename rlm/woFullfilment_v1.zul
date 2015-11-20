@@ -140,9 +140,7 @@ void woFunc(String iwhat)
 	todaydate =  kiboo.todayISODateTimeString();
 	sqlstm = msgtext = fastmessage = "";
 	renum = false;
-
-	unm = "tester";
-	try { unm = useraccessobj.username; } catch (Exception e) {}
+	unm = "tester"; try { unm = useraccessobj.username; } catch (Exception e) {}
 
 	woitemslb = things_holder.getFellowIfAny("things_lb");
 

@@ -4,6 +4,7 @@
 <zscript src="rglobal/rglobal.zs" />
 <zscript src="rglobal/formMaker_v1.zs" />
 <zscript src="rglobal/rlmsql.zs" />
+<zscript src="rglobal/uploadedWorksheet_v1.zs" />
 <zscript src="stockManf/stockmanfunc.zs" />
 <zscript src="stockManf/stocklister.zs" />
 <zscript>

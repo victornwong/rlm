@@ -3,6 +3,7 @@
 <zk>
 <zscript src="rglobal/rglobal.zs" />
 <zscript src="rglobal/formMaker_v1.zs" />
+<zscript src="rglobal/uploadedWorksheet_v1.zs" />
 <zscript src="rglobal/rlmsql.zs" />
 <zscript src="rglobal/invtstockmaster.zs" />
 <zscript src="rglobal/supplierfunc.zs" />
@@ -66,7 +67,18 @@ void setGlobalInventoryLBvars(Object isel)
 	glob_invt_desc = lbhand.getListcellItemLabel(isel,INVT_DESC_POS);
 	glob_invt_struct = lbhand.getListcellItemLabel(isel,INVT_STRUCT_POS);
 
-	invt_struct_code_lbl.setValue( glob_invt_struct + glob_invt_stockcode);
+	invt_struct_code_lbl.setValue( glob_invt_struct + " " + glob_invt_stockcode);
+}
+
+/**
+ * Call-back from listbox onSelect event : inventorymanfunc.invtclick
+ * @param isel [description]
+ */
+void inventoryLBonselect_callback(Object isel)
+{
+	setGlobalInventoryLBvars(isel);
+	showInventoryMeta(glob_invt_stkid);
+	workarea.setVisible(true);
 }
 
 /**
@@ -168,7 +180,6 @@ void inventoryFunc(String iwhat)
 	if(!msgtext.equals("")) guihand.showMessageBox(msgtext);
 }
 
-
 /**
  * Call-back from digloadPOitems listbox -> digpoitems_dclick onSelect
  * @param isel list-item obj
@@ -185,8 +196,70 @@ void inventory_peritem_Callback(Object isel)
 	glob_sel_item_po = lbhand.getListcellItemLabel(isel,INVTITEM_REFNO_POS);
 }
 
+/**
+ * Print location label - BIRT. Qty of label to print, user can set in the print-box
+ * @param pStkid stock-master ID
+ * @param pBin   loca/bin
+ */
+void printLocationLabel_byStkid(String pStkid, Textbox pBin)
+{
+	if(pStkid.equals("") || pStkid.equals("0")) return;
+	ibin = pBin.getValue().trim(); if(ibin.equals("")) return;
+
+	bfn = "rlm/stkidlabelstandalone_v1.rptdesign";
+	thesrc = birtURL() + bfn + "&stkid=" + pStkid + "&locab=" + ibin;
+
+	if(printlocabirt_holder.getFellowIfAny("stdlabelprintframe") != null) stdlabelprintframe.setParent(null);
+	Iframe newiframe = new Iframe();
+	newiframe.setId("stdlabelprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
+	newiframe.setSrc(thesrc); newiframe.setParent(printlocabirt_holder);
+	prnlocaout_pop.open(printlabel_b);
+}
+
 ]]>
 </zscript>
+
+<popup id="prnlocaout_pop">
+	<div id="printlocabirt_holder" width="600px" />
+</popup>
+
+<popup id="changecategory_pop">
+	<div sclass="shadowbox" style="${MPFPOP_BACKGROUND}" width="400px">
+		<vbox>
+			<label value="Similar stock-master you can transfer to" sclass="k9mo" />
+			<listbox id="sametype_stockcode_lb" mold="select" sclass="k9" />
+		</vbox>
+		<separator height="3px" />
+		<div id="itemstransfer_holder" />
+		<separator height="3px" />
+		<button label="Transfer the items" sclass="k9mo" onClick="transferInventory()" />
+	</div>
+</popup>
+
+<popup id="stktransferpop">
+	<div sclass="shadowbox" style="${MPFPOP_BACKGROUND}" width="650px" >
+		<label value="Inventory Transfer" sclass="subhead1" />
+		<separator height="6px" />
+		<hbox>
+			<label value="From" sclass="wbo" />
+			<datebox id="tfx_startdate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+			<label value="To" sclass="wbo" />
+			<datebox id="tfx_enddate" format="yyyy-MM-dd" style="font-size:9px" onCreate="kiboo.setTodayDatebox(self)" />
+			<textbox id="tfx_search_tb" sclass="k9" />
+			<button label="Find / List" sclass="k9mo" onClick="showInventoryTransfer(tfx_startdate,tfx_enddate,tfx_search_tb,tfxlist_holder)" />
+			<button label="Export" sclass="k9mo" onClick="exportInventoryTransfer()" />
+		</hbox>
+		<separator height="3px" />
+		<div id="tfxlist_holder" />
+	</div>
+</popup>
+
+<popup id="moveinventory_pop">
+	<div sclass="shadowbox" style="${MPFPOP_BACKGROUND}">
+		<vbox>
+		</vbox>
+	</div>
+</popup>
 
 <popup id="showduplicates_pop">
 	<div sclass="shadowbox" style="background:#EA4713" width="400px">
@@ -295,6 +368,31 @@ void inventory_peritem_Callback(Object isel)
 	</div>
 </popup>
 
+<popup id="printlocalabel_pop">
+	<div sclass="shadowbox" style="${MPFPOP_BACKGROUND}" width="300px">
+		<grid sclass="GridLayoutNoBorder">
+			<rows>
+				<row style="${MPFPOP_BACKGROUND}">
+					<label value="Location / Bin" sclass="k9b" />
+					<textbox id="prnloca_bin_tb" sclass="k9" />
+				</row>
+				<row style="${MPFPOP_BACKGROUND}" spans="1,2">
+					<button label="Use this" sclass="k9mo" onClick="insertBinSelector(prnloca_mainbin,prnloca_mainbinno,prnloca_shelfno,prnloca_partino,prnloca_bin_tb)" />
+					<hbox>
+						<listbox id="prnloca_mainbin" mold="select" sclass="k9" />
+						<listbox id="prnloca_mainbinno" mold="select" sclass="k9" />
+						<listbox id="prnloca_shelfno" mold="select" sclass="k9" />
+						<listbox id="prnloca_partino" mold="select" sclass="k9" />
+						<label value="(eg T1-2-3)" sclass="k9" />
+					</hbox>
+				</row>
+			</rows>
+		</grid>
+		<separator height="3px" />
+		<button label="Print location label" sclass="k9mo" onClick="printlocalabel_pop.close(); printLocationLabel_byStkid(glob_invt_stkid,prnloca_bin_tb)" />
+	</div>
+</popup>
+
 <popup id="invtreport_pop">
 	<div sclass="shadowbox" style="${MPFPOP_BACKGROUND}">
 		<vbox>
@@ -334,12 +432,21 @@ void inventory_peritem_Callback(Object isel)
 		<hbox>
 			<button label="List" sclass="k9mo" onClick="listinvent_pop.open(self)" />
 			<button label="Reports" sclass="k9mo" onClick="invtreport_pop.open(self)" />
+			<button label="Inventory transfer list" sclass="k9mo" onClick="stktransferpop.open(self)" />
 			<button id="chkdupitems_b" label="Check duplicate items" sclass="k9mo" onClick="inventoryFunc(self.getId())" />
 		</hbox>
 		<separator height="3px" />
 		<div id="inventoryholder" />
 	</div>
 	<separator height="3px" />
+		<div id="nagbar" style="${NAG_BAR_STYLE}">
+		<hbox>
+			<separator width="5px" />
+			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
+		</hbox>
+	</div>
+	<separator height="3px" />
+
 	<div id="workarea" sclass="shadowbox" style="background:#2F6B9C" visible="false">
 		<label id="invt_struct_code_lbl" sclass="subhead1" />
 		<separator height="3px" />
@@ -349,31 +456,30 @@ void inventory_peritem_Callback(Object isel)
 			<textbox id="itemcode_tb" sclass="k9" />
 			<button id="finditemcode_b" label="Find item-code" sclass="k9mo" onClick="inventoryFunc(self.getId())" />
 			<button label="View PO" sclass="k9mo" onClick="viewPO_small(glob_sel_item_po)" />
-			<button label="Print location label" sclass="k9mo" />
+			<button label="Transfer inventory" sclass="k9mo" onClick="updateSameType_stockcodelist(); populateSelectedInventoryToMove(); changecategory_pop.open(self)" />
+			<button id="printlabel_b" label="Print location labels" sclass="k9mo" onClick="printlocalabel_pop.open(self)" />
 		</hbox>
 		<separator height="3px" />
 		<div id="invtitems_holder" />
 	</div>
-	<separator height="3px" />
-	<div id="nagbar" style="${NAG_BAR_STYLE}">
-		<hbox>
-			<separator width="10px" />
-			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
-		</hbox>
-	</div>
+
 	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
 
 	<div id="windowsholder" />
+	<div id="kasiexport" />
 <zscript>
 <![CDATA[
 
 Object[] impfloca = { impf_mainbin, impf_mainbinno, impf_shelfno, impf_partino };
+Object[] prnloca = { prnloca_mainbin, prnloca_mainbinno, prnloca_shelfno, prnloca_partino };
+
 fillupLocationBin(impfloca);
+fillupLocationBin(prnloca);
 
 /*
-fillListbox_uniqField("StockMasterDetails","Stock_Cat", m_stock_cat_lb );
-fillListbox_uniqField("StockMasterDetails","GroupCode", m_groupcode_lb );
-fillListbox_uniqField("StockMasterDetails","ClassCode", m_classcode_lb );
+fillListbox_uniqField("StockMasterDetails","Stock_Cat", chgcategory_lb );
+fillListbox_uniqField("StockMasterDetails","GroupCode", chggroup_lb );
+fillListbox_uniqField("StockMasterDetails","ClassCode", chgclass_lb );
 */
 
 fillStockMasterSelectorDropdowns(); // stocklister.zs

@@ -4,33 +4,41 @@
 
 Object[] retitemshds =
 {
-	new listboxHeaderWidthObj("No.",true,"50px"),
+	new listboxHeaderWidthObj("No.",true,"40px"),
+
 	new listboxHeaderWidthObj("stk_id",false,""),
 	new listboxHeaderWidthObj("Serial No.",true,""),
-	new listboxHeaderWidthObj("Qty",true,"50px"),
+	new listboxHeaderWidthObj("Qty",true,"50px"), // 3
+	new listboxHeaderWidthObj("Stat",true,""), // 4
+	new listboxHeaderWidthObj("origid",true,""), // 5
+
 	new listboxHeaderWidthObj("Loca",true,"70px"),
+	new listboxHeaderWidthObj("Struct",true,""), // 7
 	new listboxHeaderWidthObj("parent_origid",false,""),
 };
-RETITEM_STKID_POS = 1;
-RETITEM_SERIAL_POS = 2;
-RETITEM_QTY_POS = 3;
-RETITEM_LOCA_POS = 4;
-RETITEM_PARENTORIGID_POS = 5;
+RETITEM_STKID_POS = 1; RETITEM_SERIAL_POS = 2; RETITEM_QTY_POS = 3;
+RETITEM_STATUS_POS = 4; RETITEM_ORIGID_POS = 5;
+RETITEM_LOCA_POS = 6; RETITEM_STRUCT_POST = 7;
+RETITEM_PARENTORIGID_POS = 8; 
 
 Listbox showReturnItems_listbox(String pParent, Div pHolder, String pLbid)
 {
 	returnslb = lbhand.makeVWListbox_Width(pHolder, retitemshds, pLbid, 8);
-	retsql = "select stk_id,Itemcode,Qty from tblStockReturn where stkout_parent=" + pParent;
+	retsql = "select origid,stk_id,Itemcode,Qty,status from tblStockReturn where stkout_parent=" + pParent;
 	r = sqlhand.rws_gpSqlGetRows(retsql);
 	if(r.size() > 0)
 	{
 		ArrayList kabom = new ArrayList();
-		String[] fl = { "stk_id","Itemcode","Qty" };
+		String[] fl = { "stk_id","Itemcode","Qty","status","origid" };
 		for(d : r)
 		{
 			kabom.add("0");
 			ngfun.popuListitems_Data(kabom,fl,d);
+
 			kabom.add( getInventoryLastLoca(d.get("Itemcode")) ); // get item last location
+			kabom.add(getStockMasterStruct(d.get("stk_id").toString())); // stock-master struct
+			kabom.add("0"); // stk-out origid, nothing to remove anymore, already handled by saveReturnList()
+
 			lbhand.insertListItems(returnslb,kiboo.convertArrayListToStringArray(kabom),"false","");
 			kabom.clear();
 		}
@@ -51,13 +59,18 @@ void addToReturnList(Listbox pOrig, Listbox pTo)
 	for(i=0; i<oglbs.length; i++)
 	{
 		isel = oglbs[i];
+		istkid = lbhand.getListcellItemLabel(isel,ITEM_STKID_POS);
+		snum = lbhand.getListcellItemLabel(isel,ITEM_CODE_POS);
 
 		kabom.add("0");
-		snum = lbhand.getListcellItemLabel(isel,ITEM_CODE_POS);
-		kabom.add( lbhand.getListcellItemLabel(isel,ITEM_STKID_POS) ); // itemsfunc.itmcodehds column position
+		kabom.add( istkid ); // itemsfunc.itmcodehds column position
 		kabom.add( snum );
 		kabom.add( lbhand.getListcellItemLabel(isel,ITEM_QTY_POS) );
+		kabom.add( "DRAFT" ); // ret-item status
+		kabom.add( "0" ); // new ret-item, no db origid
+
 		kabom.add( getInventoryLastLoca(snum) ); // get item last location
+		kabom.add( getStockMasterStruct(istkid) ); // stock-master struct
 		kabom.add( lbhand.getListcellItemLabel(isel,ITEM_ORIGID_POS) ); // parent scan-item tblStockOutDetail origid
 
 		lbhand.insertListItems(pTo,kiboo.convertArrayListToStringArray(kabom),"false","");
@@ -103,7 +116,7 @@ void saveReturnList(String pOb, Listbox pRetlb)
 		pstmt.setInt(3, Integer.parseInt(lbhand.getListcellItemLabel(ts[i],RETITEM_QTY_POS)) );
 		pstmt.setInt(4, Integer.parseInt(pOb) );
 		pstmt.setString(5, unm);
-		pstmt.setString(6, "DRAFT");
+		pstmt.setString(6, lbhand.getListcellItemLabel(ts[i],RETITEM_STATUS_POS) );
 
 		pstmt.addBatch();
 	}
@@ -133,5 +146,32 @@ void revertParts_toStkout(String pOb, Listbox pRetlb)
  */
 void returnParts_toInventory(String pOb, Listbox pRetlb)
 {
+	if(pRetlb.getItemCount() == 0) return;
+	ts = pRetlb.getItems().toArray();
+	today = kiboo.todayISODateTimeString();
 
+	Sql sql = wms_Sql(); Connection thecon = sql.getConnection();
+	PreparedStatement pst = thecon.prepareStatement("update StockList set Balance=Balance+?, stage='NEW', OutRefNo=null, OutRefDate=null where Itemcode=? and stk_id=? limit 1;");
+	PreparedStatement updst = thecon.prepareStatement("update tblStockReturn set commitdate=?, status='RET' where origid=? limit 1;");
+
+	for(i=0; i<ts.length; i++)
+	{
+		istat = lbhand.getListcellItemLabel(ts[i],RETITEM_STATUS_POS);
+		if(istat.equals("DRAFT")) // only return if DRAFT, else already returned to inventory
+		{
+			pst.setInt(1, Integer.parseInt(lbhand.getListcellItemLabel(ts[i],RETITEM_QTY_POS)) );
+			pst.setString(2, lbhand.getListcellItemLabel(ts[i],RETITEM_SERIAL_POS) );
+			pst.setInt(3, Integer.parseInt(lbhand.getListcellItemLabel(ts[i],RETITEM_STKID_POS)) );
+			pst.addBatch();
+
+			updst.setTimestamp(1, java.sql.Timestamp.valueOf(today));
+			updst.setInt(2, Integer.parseInt(lbhand.getListcellItemLabel(ts[i],RETITEM_ORIGID_POS)) );
+			updst.addBatch();
+
+			lbhand.setListcellItemLabel(ts[i], RETITEM_STATUS_POS, "RET"); // set return-item status to RET, incase use press again, don't double-post
+		}
+	}
+	pst.executeBatch(); pst.close();
+	updst.executeBatch(); updst.close();
+	sql.close();
 }

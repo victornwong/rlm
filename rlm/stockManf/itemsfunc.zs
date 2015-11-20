@@ -40,17 +40,12 @@ Object[] stkinhds =
 	new listboxHeaderWidthObj("curcode",false,""), // 10
 	new listboxHeaderWidthObj("exhrate",false,""),
 	new listboxHeaderWidthObj("uprice",false,""),
+	new listboxHeaderWidthObj("Struct",true,""),
 };
-STKIN_ID_POS = 0;
-STKIN_REF_POS = 2;
-STKIN_DESC_POS = 3;
-STKIN_STOCKNAME_POS = 4;
-STKIN_USER_POS = 6;
-STKIN_STATUS_POS = 7;
-STKID_POS = 9;
-STKIN_CURCODE_POS = 10;
-STKIN_EXCHANGERATE_POS = 11;
-STKIN_UNITPRICE_POS = 12;
+STKIN_ID_POS = 0; STKIN_REF_POS = 2; STKIN_DESC_POS = 3;
+STKIN_STOCKNAME_POS = 4; STKIN_USER_POS = 6; STKIN_STATUS_POS = 7;
+STKID_POS = 9; STKIN_CURCODE_POS = 10; STKIN_EXCHANGERATE_POS = 11;
+STKIN_UNITPRICE_POS = 12; STKIN_STRUCT_POS = 13;
 
 class stkinclik implements org.zkoss.zk.ui.event.EventListener
 {
@@ -118,6 +113,7 @@ void listStockIn(int itype)
 	for(d : r)
 	{
 		ngfun.popuListitems_Data(kabom,fl,d);
+		kabom.add(getStockMasterStruct(d.get("stk_id").toString()));
 		lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
 		kabom.clear();
 	}
@@ -219,6 +215,7 @@ Object[] itmcodehds =
 	new listboxHeaderWidthObj("StockCode",false,""),
 	new listboxHeaderWidthObj("stk_id",false,""),
 	new listboxHeaderWidthObj("origid",false,""),
+	new listboxHeaderWidthObj("Struct",true,"70px"),
 };
 
 Object[] itmcode_stockcode_hds =

@@ -84,6 +84,19 @@ void obitem_callBack(Object isel)
 }
 
 /**
+ * Call-back from outboundlister->outbclicker onSelect : to show outbound meta
+ * @param isel [description]
+ */
+void outbound_CallBack(Object isel)
+{
+	glob_sel_stkout = lbhand.getListcellItemLabel(isel,OUTB_ORIGID_POS);
+	glob_stkout_status = lbhand.getListcellItemLabel(isel,OUTB_STATUS_POS);
+	glob_stkout_stage = lbhand.getListcellItemLabel(isel,OUTB_STAGE_POS);
+	glob_stkout_type = lbhand.getListcellItemLabel(isel,OUTB_TYPE_POS);
+	showOutboundMeta(glob_sel_stkout);
+}
+
+/**
  * Double-click callback from itemsfunc.itemsdclick
  * @param isel list-item cliked
  */
@@ -216,6 +229,13 @@ void partret_funcDo(String iwhat)
 		<div id="outbounds_holder" />
 	</div>
 	<separator height="3px" />
+	<div id="nagbar" style="${NAG_BAR_STYLE}">
+		<hbox>
+			<separator width="5px" />
+			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
+		</hbox>
+	</div>
+	<separator height="3px" />
 	<div id="workarea" sclass="shadowbox" style="background:#2F6B9C">
 		<hbox>
 			<vbox>
@@ -235,19 +255,12 @@ void partret_funcDo(String iwhat)
 				<div id="returnitems_holder" />
 				<hbox>
 					<button id="savereturnlist_b" label="Save return list" sclass="k9mo" onClick="partret_funcDo(self.getId())" />
-					<button id="pushback_b" label="Revert to STKOUT" sclass="k9mo" onClick="partret_funcDo(self.getId())" />
+					<button id="pushback_b" label="Revert to STKOUT" sclass="k9mo" onClick="partret_funcDo(self.getId())" visible="false" />
 					<button id="commitreturnlist_b" label="COMMIT - RETURN items to inventory" sclass="k9mo" style="color:#E51010" onClick="partret_funcDo(self.getId())" />
 				</hbox>
 			</vbox>
 		</hbox>
 		<separator height="3px" />
-	</div>
-	<separator height="3px" />
-	<div id="nagbar" style="${NAG_BAR_STYLE}">
-		<hbox>
-			<separator width="10px" />
-			<label id="nagtext" multiline="true" sclass="blink" style="font-size:9px;font-weight:bold" />
-		</hbox>
 	</div>
 	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
 

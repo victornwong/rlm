@@ -5,6 +5,7 @@
 <zscript src="rglobal/formMaker_v1.zs" />
 <zscript src="rglobal/rlmsql.zs" />
 <zscript src="rglobal/supplierfunc.zs" />
+<zscript src="rglobal/pofuncs.zs" />
 <zscript src="rglobal/orderqueuefunc.zs" />
 <zscript src="rglobal/poitemsfunc.zs" />
 <zscript src="stockManf/stocklister.zs" />

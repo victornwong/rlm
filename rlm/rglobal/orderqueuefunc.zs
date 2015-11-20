@@ -74,11 +74,10 @@ Object[] orderque_hds =
 	new listboxHeaderWidthObj("Qty",true,"50px"),
 	new listboxHeaderWidthObj("Reason",true,""),
 	new listboxHeaderWidthObj("origid.",false,""), // 6
+	new listboxHeaderWidthObj("Struct",true,""),
 };
-ORDQ_STKID = 2;
-ORDQ_STOCKCODE = 3;
-ORDQ_QTY = 4;
-ORDQ_ORIGID = 6;
+ORDQ_STKID = 2; ORDQ_STOCKCODE = 3; ORDQ_QTY = 4;
+ORDQ_ORIGID = 6; ORDQ_STRUCT = 7;
 
 void showOrderQueue(Div iholder, String ist)
 {
@@ -98,6 +97,7 @@ void showOrderQueue(Div iholder, String ist)
 	{
 		kabom.add("0");
 		ngfun.popuListitems_Data(kabom,fl,d);
+		kabom.add( getStockMasterStruct(d.get("stk_id").toString()) );
 		lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
 		kabom.clear();
 	}

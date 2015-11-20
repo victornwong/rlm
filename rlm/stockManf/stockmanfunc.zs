@@ -2,6 +2,10 @@
  * Stock masters management functions
  */
 
+/**
+ * Import stock-master definitions from XLS
+ * Format column: Stock_Code	Description	Stock_Cat	GroupCode	ClassCode	Product_Detail	Supplier_Code
+ */
 void importStockDetails()
 {
 	stkdets = new uploadedWorksheet();
@@ -16,7 +20,7 @@ void importStockDetails()
 	Cell kcell;
 	todaydate =  kiboo.todayISODateTimeString();
 	//unm = useraccessobj.username;
-	String[] dt = new String[5];
+	String[] dt = new String[7];
 	sqlstm = "";
 
 	inps = "";
@@ -33,6 +37,9 @@ void importStockDetails()
 	Sql sql = wms_Sql();
 	Connection thecon = sql.getConnection();
 	todaydate =  kiboo.todayISODateTimeString();
+	PreparedStatement pstmt = thecon.prepareStatement("insert into StockMasterDetails (Stock_Code, Description, Stock_Cat, GroupCode, ClassCode, " +
+		"Product_Detail, Supplier_Code, EntryDate, IsActive) values " +
+		"(?,?,?,?,?,?,?,?,?)");
 
 	for(i=1; i<wknumrows; i++) // Skip row 1 = headers
 	{
@@ -40,7 +47,7 @@ void importStockDetails()
 		{
 			checkrow = wksht0.getRow(i);
 
-			for(k=0; k<5; k++)
+			for(k=0; k<7; k++)
 			{
 				dt[k] = "";
 				try { kcell = checkrow.getCell(k); dt[k] = POI_GetCellContentString(kcell,evaluator,"").trim(); }
@@ -49,16 +56,13 @@ void importStockDetails()
 
 			if(!dt[0].equals("")) // make sure got stock_code before inserting into database
 			{
-				PreparedStatement pstmt = thecon.prepareStatement("insert into StockMasterDetails (Stock_Code, Description, Stock_Cat, GroupCode, ClassCode, EntryDate, IsActive) values " +
-					"(?,?,?,?,?,?,?)");
-
-				for(m=0;m<5;m++)
+				for(m=0;m<7;m++)
 				{
 					pstmt.setString(m+1,dt[m]);
 				}
 
-				pstmt.setString(6,todaydate);
-				pstmt.setInt(7,1);
+				pstmt.setString(8,todaydate);
+				pstmt.setInt(9,1);
 				pstmt.addBatch();
 				lineimp++; // count line inserted
 			}

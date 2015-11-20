@@ -6,6 +6,7 @@
 <zscript src="rglobal/rlmsql.zs" />
 <zscript src="rglobal/invtstockmaster.zs" />
 <zscript src="rglobal/pofuncs.zs" />
+<zscript src="rglobal/stkoutfunc.zs" />
 <zscript src="stockManf/polister.zs" />
 <zscript src="stockManf/stocklister.zs" />
 <zscript src="stockManf/itemsfunc.zs" />
