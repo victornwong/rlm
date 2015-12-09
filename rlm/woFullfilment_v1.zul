@@ -4,9 +4,11 @@
 <zscript src="rglobal/rglobal.zs" />
 <zscript src="rglobal/formMaker_v1.zs" />
 <zscript src="rglobal/rlmsql.zs" />
+<zscript src="rglobal/uploadedWorksheet_v1.zs" />
 <zscript src="rglobal/customerSelector.zs" />
 <zscript src="rglobal/stkoutfunc.zs" />
 <zscript src="rglobal/wofuncs.zs" />
+<zscript src="rglobal/joblinkbp.zs" />
 <zscript src="stockManf/stocklister.zs" />
 <zscript src="stockManf/itemsfunc.zs" />
 <zscript src="stockManf/outboundlister.zs" />
@@ -217,6 +219,13 @@ void woFunc(String iwhat)
 		fastmessage = "WH request submitted : " + kk;
 	}
 
+	if(iwhat.equals("reassigntech_b")) // re-assign WO to different technician
+	{
+		newtech = r_technician.getSelectedItem().getLabel();
+		sqlstm = "update workorders set technician='" + newtech + "' where origid=" + glob_sel_workorder;
+		workarea.setVisible(false); // hide workarea after reassign technician, user have to re-open WO to see changes
+	}
+
 	if(renum)
 	{
 		recalcSubtotal(woitemslb,WOI_QTY_POS,WOI_UPRICE_POS,WOI_SUBTOTAL_POS);
@@ -318,6 +327,16 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 	return prevoutbound; // return the WH outbound order no.
 }
 
+/**
+ * Export WO listbox to EXCEL . uses wofuncs.wohds1 (listbox headers)
+ * Hardcoded UI comps : workorder_holder DIV and wo_lb LISTBOX created by wofuncs.listWorkOrders()
+ */
+void exportWorkOrdersExcel()
+{
+	if(workorder_holder.getFellowIfAny("wo_lb") == null) return;
+	exportExcelFromListbox(wo_lb, kasiexport, wohds1, "workorders.xls","WO");
+}
+
 ]]>
 </zscript>
 
@@ -333,11 +352,11 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 				</row>
 				<row style="${LISTPOBACKGROUND}" spans="3,1">
 					<textbox id="searhtxt_tb" sclass="k9" width="95%" />
-					<button label="Load/Find" sclass="k9mo" onClick='listpopop.close();listWorkOrders(workorder_holder, "wo_lb", startdate, enddate, searhtxt_tb,bywo_tb, 3, true)' />
+					<button label="Load/Find" sclass="k9mo" onClick='listpopop.close();listWorkOrders(workorder_holder, "wo_lb", startdate, enddate, searhtxt_tb,bywo_tb, 1, true)' />
 				</row>
 				<row style="${LISTPOBACKGROUND}" spans="3,1">
 					<textbox id="bywo_tb" sclass="k9" width="50%" />
-					<button label="by work-order" sclass="k9mo" onClick='listpopop.close();listWorkOrders(workorder_holder, "wo_lb", startdate, enddate, searhtxt_tb,bywo_tb, 4, true)' />
+					<button label="by work-order" sclass="k9mo" onClick='listpopop.close();listWorkOrders(workorder_holder, "wo_lb", startdate, enddate, searhtxt_tb,bywo_tb, 2, true)' />
 				</row>
 			</rows>
 		</grid>
@@ -396,6 +415,14 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 	</div>
 </popup>
 
+<popup id="reassignwo_pop">
+	<div sclass="shadowbox" style="${LISTPOBACKGROUND}">
+		<label value="Technician" sclass="wbo" />
+		<listbox id="r_technician" mold="select" sclass="k9" />
+		<button id="reassigntech_b" label="Reassign" sclass="k9mo" onClick="woFunc(self.getId())" />
+	</div>
+</popup>
+
 <style src="/real-world.css" />
 <style>
 	.GridLayoutNoBorder tr.z-row td.z-row-inner, tr.z-row .z-cell, div.z-grid
@@ -414,6 +441,7 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 		<hbox>
 			<button id="listworks_b" label="List" sclass="k9mo" onClick="listpopop.open(self)" />
 			<button label="List my work-order" sclass="k9mo" onClick='listWorkOrders(workorder_holder, "wo_lb", startdate, enddate, searhtxt_tb,bywo_tb, 5, true)' />
+			<button label="Export work-orders" sclass="k9mo" onClick="exportWorkOrdersExcel()" />
 			<separator width="10px" />
 			<button id="adminbut" label="ADMIN" sclass="k9mo" style="color:#E81717" onClick="adminpop.open(self)" visible="false" />
 		</hbox>
@@ -433,7 +461,8 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 			<button id="pickupwo_b" label="Start work-order" sclass="k9mo" onClick="woFunc(self.getId())" />
 			<button id="saveiris_b" label="Save IRIS codings" sclass="k9mo" onClick="woFunc(self.getId())" />
 			<button id="compoletewo_b" label="Complete work-order" sclass="k9mo" onClick="woFunc(self.getId())" />
-			<separator width="15px" />
+			<separator width="10px" />
+			<button label="Assign to different tech" sclass="k9mo" onClick="reassignwo_pop.open(self)" />
 			<label id="showfastmessage_lbl" sclass="wbo" />
 		</hbox>
 		<separator height="3px" />
@@ -634,6 +663,7 @@ String submitWHOutbound(String iwo, Div iholder, String ilbid)
 	</div>
 
 	<div id="windowsholder" />
+	<div id="kasiexport" />
 	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
 	<!-- <timer id="maintimer" delay="${TIMER_DELAY}" repeats="true" onTimer="timerFunc()" /> -->
 <zscript>
@@ -664,6 +694,8 @@ luhand.populateListbox_ByLookup(w_work_type, "WO_WORKTYPE", 2);
 luhand.populateListbox_ByLookup(w_asc_user, "WO_ASC_OUTSOURCE", 2);
 luhand.populateListbox_ByLookup(w_technician,"TECHNICIANS",2);
 luhand.populateListbox_ByLookup(w_warranty_status,"WARRANTY_STATUS",2);
+
+luhand.populateListbox_ByLookup(r_technician,"TECHNICIANS",2); // re-assign technician drop-down in reassignwo_pop
 
 fillStockMasterSelectorDropdowns(); // stocklister.zs
 

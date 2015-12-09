@@ -208,7 +208,8 @@ void digloadPOitems(Div iholder, int ipo)
 		for(d : r)
 		{
 			ngfun.popuListitems_Data(kabom,fl,d);
-			kabom.add( getStockMasterStruct(d.get("stock_code").toString()) );
+			stkstruct = (d.get("stock_code") != null) ? getStockMasterStruct(d.get("stock_code").toString()) : ""; // rlmsql.zs
+			kabom.add( stkstruct );
 			lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
 			kabom.clear();
 		}

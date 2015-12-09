@@ -180,7 +180,10 @@ Listbox showScanItems_byParent(String pParent, String pStkid, Div pHolder, Strin
 			kabom.add("0"); kabom.add(d.get("StockCode").trim());
 			kabom.add(d.get("Quantity").toString()); kabom.add("0"); kabom.add("UNK");
 			kabom.add("UNK"); kabom.add(d.get("stk_id").toString()); kabom.add( d.get("Id").toString() ); // stockcode,stk_id,origid
-			kabom.add(getStockMasterStruct( d.get("stk_id").toString() )); // inventorymanfunc.zs
+
+			stkstruct = (d.get("stk_id") != null) ? getStockMasterStruct(d.get("stk_id").toString()) : ""; // rlmsql.zs
+			kabom.add( stkstruct ); 
+
 			lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
 			kabom.clear();
 		}

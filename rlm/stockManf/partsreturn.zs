@@ -36,7 +36,8 @@ Listbox showReturnItems_listbox(String pParent, Div pHolder, String pLbid)
 			ngfun.popuListitems_Data(kabom,fl,d);
 
 			kabom.add( getInventoryLastLoca(d.get("Itemcode")) ); // get item last location
-			kabom.add(getStockMasterStruct(d.get("stk_id").toString())); // stock-master struct
+			stkstruct = (d.get("stk_id") != null) ? getStockMasterStruct(d.get("stk_id").toString()) : ""; // rlmsql.zs
+			kabom.add(stkstruct); // stock-master struct
 			kabom.add("0"); // stk-out origid, nothing to remove anymore, already handled by saveReturnList()
 
 			lbhand.insertListItems(returnslb,kiboo.convertArrayListToStringArray(kabom),"false","");
@@ -70,7 +71,8 @@ void addToReturnList(Listbox pOrig, Listbox pTo)
 		kabom.add( "0" ); // new ret-item, no db origid
 
 		kabom.add( getInventoryLastLoca(snum) ); // get item last location
-		kabom.add( getStockMasterStruct(istkid) ); // stock-master struct
+		stkstruct = (d.get("stk_id") != null) ? getStockMasterStruct(d.get("stk_id").toString()) : ""; // rlmsql.zs
+		kabom.add( stkstruct ); // stock-master struct
 		kabom.add( lbhand.getListcellItemLabel(isel,ITEM_ORIGID_POS) ); // parent scan-item tblStockOutDetail origid
 
 		lbhand.insertListItems(pTo,kiboo.convertArrayListToStringArray(kabom),"false","");

@@ -51,7 +51,10 @@ Listbox showPOitems(String ipo, Div iholder, String ilbid)
 			kabom.add("0");
 			ngfun.popuListitems_Data(kabom,fl,d);
 			kabom.add("0"); // subtotal
-			kabom.add(getStockMasterStruct(d.get("stock_code").toString()));
+
+			stkstruct = (d.get("stock_code") != null) ? getStockMasterStruct(d.get("stock_code").toString()) : "";
+			kabom.add(stkstruct);
+
 			lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
 			kabom.clear();
 		}

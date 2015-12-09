@@ -79,16 +79,13 @@ void woTogButts(boolean iwhat)
 void findcustomer_Callback(Object isel, String icid, String iarcode, String icustn)
 {
 	selcustomer_pop.close();
-	r = getCustomer_Rec(icid);
-	if(r == null) return;
-
+	r = getCustomer_Rec(icid); if(r == null) return;
 	glob_sel_arcode = iarcode; // save for global usage - going to be saved into db too
 
-	// populate 'em metadata boxes
 	String[] cfl = { "ar_code", "customer_name" , "address1", "address2", "address3", "Address4",
 	"contact_person1", "telephone_no", "fax_no", "E_mail" };
 
-	ngfun.populateUI_Data(wocustomermetaboxes,cfl,r);
+	ngfun.populateUI_Data(wocustomermetaboxes,cfl,r); // populate 'em metadata boxes
 }
 
 /**
@@ -170,8 +167,7 @@ void workOrder_dc_callBack(Object isel)
 void woFunc(String iwhat)
 {
 	todaydate =  kiboo.todayISODateTimeString();
-	sqlstm = msgtext = "";
-	renum = false;
+	sqlstm = msgtext = ""; renum = false;
 	unm = "tester"; try { unm = useraccessobj.username; } catch (Exception e) {}
 
 	woitemslb = things_holder.getFellowIfAny("things_lb");
@@ -238,7 +234,7 @@ void woFunc(String iwhat)
 		{
 			if(!glob_wo_stage.equals("DONE"))
 			{
-				if(Messagebox.show("This will delete the work-order from the system..", "Are you sure?",
+				if(Messagebox.show("This will delete the work-order from the system.. inventory NOT reverted automagically", "Are you sure?",
 					Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
 
 				sqlstm = "delete from workorders where origid=" + glob_sel_workorder;
@@ -371,8 +367,8 @@ void woFunc(String iwhat)
 
 /**
  * Insert a pickup/dispatch order to be handled by dispatcher or on-site technicians
- * Generalize to make it useable in other module
- * @param recthings string array of stuff to insert into table pickupdisp , size(10)
+ * Generalize to make it useable in other module - param String array pretty hardcoded at this moment
+ * @param recthings string array of stuff to insert into table pickupdisp , size(11)
  * [0] = customer name 					[1] = destination address
  * [2] = contact person 				[3] = contact tel
  * [4] = contact email 					[5] = pickup date
@@ -385,17 +381,21 @@ void insertPickupOrder_db(String[] recthings, String iunm)
 	todaydate =  kiboo.todayISODateTimeString();
 
 	sqlstm = "delete from pickupdisp where job_id=" + recthings[9];
-	sqlhand.rws_gpSqlExecuter(sqlstm); // delete prev pickup order if any
+	sqlhand.rws_gpSqlExecuter(sqlstm); // delete prev pickup order if any by job-id - no checks on status though (TODO)
 
 	sqlstm = "insert into pickupdisp (datecreated,priority,username,dispatcher,et_action,et_action_time,docu_type," +
 	"customer_name,destination,contact_person,contact_tel,contact_email,job_id,priority,notes,delivered) values " +
 	"('" + todaydate + "','NORMAL','" + iunm + "','" + recthings[8] + "','" + recthings[5] + "','" + recthings[6] + "','" + recthings[7] + "'," +
-	"'" + recthings[0] + "','" + recthings[1] + "','" + recthings[2] + "','" + recthings[3] + "','" + recthings[4] + "'," + recthings[9] + "'," +
+	"'" + recthings[0] + "','" + recthings[1] + "','" + recthings[2] + "','" + recthings[3] + "','" + recthings[4] + "'," + recthings[9] + "," +
 	"'" + recthings[10] + "','" + recthings[11] + "',0);";
 
-	sqlhand.rws_gpSqlExecuter(sqlstm);
+	sqlhand.rws_gpSqlExecuter(sqlstm); //alert(sqlstm);
 }
 
+/**
+ * Submit a pickup/dispatch order - uses module UI components. If req in other module, make changes accordingly to
+ * grab data from the UI comp. Refer to insertPickupOrder_db() on String array pass-parameters
+ */
 void submitPickupOrder()
 {
 	String[] kp = new String[12]; // check array reference in insertPickupOrder_db()

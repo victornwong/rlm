@@ -3,7 +3,7 @@
 <?page title="UNIVERSAL_realm"?>
 <?link rel="shortcut icon" type="image/x-icon" href="/favicon.ico"?>
 <zk xmlns:h="http://www.w3.org/1999/xhtml" xmlns:zk="http://www.zkoss.org/2005/zk">
-<zscript src="rwglobal/rwglobaldefs.zs" />
+<zscript src="rlm/rglobal/rglobal.zs" />
 <zscript>
 <![CDATA[
 MYTITLE = "REALM";
@@ -108,15 +108,18 @@ void runThings(int iwhat)
 	uParams = "";
 	apfn = mainMenuModules.get(iwhat);
 
-	if(iwhat == 17) // special handling : static-lookup management
-		uParams = "lu=1"; // param: lookup parent
+	switch(iwhat) // special-handling for certain module
+	{
+		case STATICLOOKUP_MM: // static-lookup management
+			uParams = "lu=1"; // param: lookup parent
+			break;
+	}
 
 	if(!apfn.equals(""))
 	{
 		newid = iwhat.toString()+ "_" + moduleCounter.toString();
 		moduleCounter++;
-		Include newinclude = new Include();
-		newinclude.setId(newid);
+		Include newinclude = new Include(); newinclude.setId(newid);
 		includepath = apfn + "?myid=" + newid + "&" + uParams;
 		newinclude.setSrc(includepath);
 		sechand.setUserAccessObj(newinclude, useraccessobj); // securityfuncs.zs
@@ -253,6 +256,10 @@ All codes written by Victor Wong otherwise stated else
 	<vbox>
 		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="purchaseorder_m2" onClick="runThings(PURCHASEREQ_MM)">
 		<label sclass="wbo" value="Purchase Order" /></div>
+
+		<div sclass="shadowbox" style="${DIVBUTTONSTYLE}" width="${DIVBUTTONWIDTH}" id="stocklist_m2" onClick="runThings(INVENTORY_MM)">
+		<label sclass="wbo" value="Inventory" /></div>
+
 	</vbox>
 </popup>
 
@@ -292,8 +299,8 @@ All codes written by Victor Wong otherwise stated else
 
 		<separator width="10px" />
 
-		<div style="background:#EF1212;padding:3px">
-			<label id="adminbut" style="font-weight:bold" value="ADMIN" onClick="adminmenupop.open(self)" visible="false" />
+		<div id="adminbut" style="background:#EF1212;padding:3px" visible="false">
+			<label style="font-weight:bold" value="ADMIN" onClick="adminmenupop.open(self)"  />
 		</div>
 
 	</hbox>

@@ -364,8 +364,13 @@ Listbox showInventoryTransfer(Datebox pStart, Datebox pEnd, Textbox pSearch, Div
 	for(d : r)
 	{
 		ngfun.popuListitems_Data(kabom,fl,d);
-		kabom.add( getStockMasterStruct_withstockcode( d.get("last_stkid").toString() ) );
-		kabom.add( getStockMasterStruct_withstockcode( d.get("new_stkid").toString() ) );
+
+		stkstruct = (d.get("last_stkid") != null) ? getStockMasterStruct_withstockcode(d.get("last_stkid").toString()) : ""; // rlmsql.zs
+		kabom.add( stkstruct );
+
+		stkstruct = (d.get("new_stkid") != null) ? getStockMasterStruct_withstockcode(d.get("new_stkid").toString()) : ""; // rlmsql.zs
+		kabom.add( stkstruct );
+
 		lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
 		kabom.clear();
 	}

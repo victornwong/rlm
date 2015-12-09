@@ -332,6 +332,12 @@ void disp_doFunc(String iwhat)
 			sqlstm = "delete from pickupdisp where origid=" + glob_sel_disp;
 			msgtext = "Dispatch/pickup " + jnm + " deleted..";
 		}
+
+		if(iwhat.equals("dsp_togdone_b")) // toggle pickupdisp.delivered flag, no BR at this moment.
+		{
+			sqlstm = "update pickupdisp set delivered=1-delivered where origid=" + glob_sel_disp;
+			msgtext = "DONE flag toggled for " + jnm;
+		}
 	}
 
 	if(!sqlstm.equals(""))
@@ -518,6 +524,7 @@ DNE  : DONE status
 		<button id="removdispatch_b" label="Remove entry" sclass="k9mo" onClick="disp_doFunc(self.getId())" />
 		<button label="View work-order" sclass="k9mo" onClick="showWorkorder_small(glob_sel_wo)" />
 		<button id="printmanf_b" label="Print manifest" sclass="k9mo" />
+		<button id="dsp_togdone_b" label="Toggle DONE" sclass="k9mo" onClick="disp_doFunc(self.getId())" />
 		<button label="HELP" sclass="k9mo" onClick="displilhelp.open(self)" />
 	</hbox>
 

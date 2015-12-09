@@ -97,7 +97,9 @@ void showOrderQueue(Div iholder, String ist)
 	{
 		kabom.add("0");
 		ngfun.popuListitems_Data(kabom,fl,d);
-		kabom.add( getStockMasterStruct(d.get("stk_id").toString()) );
+
+		stkstruct = (d.get("stk_id") != null) ? getStockMasterStruct(d.get("stk_id").toString()) : "";
+		kabom.add( stkstruct );
 		lbhand.insertListItems(newlb,kiboo.convertArrayListToStringArray(kabom),"false","");
 		kabom.clear();
 	}
