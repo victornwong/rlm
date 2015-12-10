@@ -168,7 +168,11 @@ void woFunc(String iwhat)
 
 	if(iwhat.equals("compoletewo_b")) // technician complete the work-order, set stage fields and etc
 	{
+		if(Messagebox.show("This will complete all technical works on order..", "Are you sure?",
+			Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
 
+		sqlstm = "update workorders set stage='" + WOSTAGE_DONE + "', stage_user='" + unm + "', stage_date='" + todaydate + "' " +
+		"where origid=" + glob_sel_workorder;
 	}
 
 	if(iwhat.equals("stgdone_b")) // set stage to DONE - testing purposes
@@ -558,9 +562,11 @@ void exportWorkOrdersExcel()
 							<label value="Warranty status :" sclass="wbo" />
 							<listbox id="w_warranty_status" sclass="k9" mold="select" disabled="true" />
 						</row>
-						<row style="${WODETAIL_STYLE}" spans="1,3">
-							<label value="Dealer ref. :" sclass="wbo" />
-							<label id="w_dealer_ref" sclass="k9" />
+						<row style="${WODETAIL_STYLE}" >
+							<label value="Dealer ref." sclass="wbo" />
+							<textbox id="w_dealer_ref" sclass="k9" />
+							<label value="Contractor" sclass="wbo" />
+							<listbox id="w_contractor" mold="select" sclass="k9" />
 						</row>
 						<row style="${WODETAIL_STYLE}" spans="4">
 							<label value="Problem description :" sclass="wbo" />
@@ -677,12 +683,12 @@ void timerFunc()
 Object[] wocustomermetaboxes = { 
 	w_ar_code, w_customer_name, w_address1, w_address2, w_address3, w_address4,
 	w_contact, w_telephone, w_email, w_work_type, w_asc_user, w_model, w_serial_no, w_warrantycard, w_remarks, w_priority, w_technician, w_purchase_date,
-	w_warranty_status, w_appointment_date, w_appointment_time, w_dealer_ref };
+	w_warranty_status, w_appointment_date, w_appointment_time, w_dealer_ref, w_contractor };
 
 String[] wocustomermfields = {
 	"ar_code", "customer_name", "address1", "address2", "address3", "address4",
 	"contact", "telephone", "email", "work_type", "asc_user", "model", "serial_no", "warrantycard", "remarks", "priority", "technician", "purchase_date",
-	"warranty_status", "appointment_date", "appointment_time", "dealer_ref" };
+	"warranty_status", "appointment_date", "appointment_time", "dealer_ref", "contractor" };
 
 Object[] woextrameta = { w_close_work, w_close_by, w_deliverdate, w_delivery_mode, w_delivery_bill };
 String[] woextramfields = { "close_work", "close_by", "deliverdate", "delivery_mode", "delivery_bill" };
@@ -694,6 +700,7 @@ luhand.populateListbox_ByLookup(w_work_type, "WO_WORKTYPE", 2);
 luhand.populateListbox_ByLookup(w_asc_user, "WO_ASC_OUTSOURCE", 2);
 luhand.populateListbox_ByLookup(w_technician,"TECHNICIANS",2);
 luhand.populateListbox_ByLookup(w_warranty_status,"WARRANTY_STATUS",2);
+luhand.populateListbox_ByLookup(w_contractor,"SERVICE_CONTRACTOR",2);
 
 luhand.populateListbox_ByLookup(r_technician,"TECHNICIANS",2); // re-assign technician drop-down in reassignwo_pop
 

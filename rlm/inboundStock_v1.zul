@@ -4,6 +4,7 @@
 <zscript src="rglobal/rglobal.zs" />
 <zscript src="rglobal/formMaker_v1.zs" />
 <zscript src="rglobal/rlmsql.zs" />
+<zscript src="rglobal/uploadedWorksheet_v1.zs" />
 <zscript src="rglobal/invtstockmaster.zs" />
 <zscript src="rglobal/pofuncs.zs" />
 <zscript src="rglobal/stkoutfunc.zs" />
@@ -22,6 +23,8 @@ MYPANEL = "inbounstockpanel";
  * @notes
  * "POST IN-STOCK" button accessible by authorized person only. It will populate StockList which is the main inventory table
  * <zscript src="../rwglobal/rwglobaldefs.zs" />
+ * 10/12/2015: group multiple STKIN and assign a GRN number - for PO-GRN matching process. Add tblStockInMaster.grn_id
+ * 10/12/2015: button to export STKIN listbox to Excel
 */
 import java.util.*;
 import java.text.*;
@@ -225,6 +228,16 @@ void stkin_doFunc(String iwhat)
 		}
 	}
 
+	if(iwhat.equals("cleargrnid_b")) // clear GRN-id in STKIN - admin
+	{
+		if(!lbhand.check_ListboxExist_SelectItem(stockins_holder,"stockin_lb")) return;
+
+		if(Messagebox.show("This will clear the GRN-ID for selected STKIN", "Are you sure?",
+			Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) != Messagebox.YES) return;
+
+		sqlstm = "update tblStockInMaster set grn_id=null where Id in (" + getListbox_SelectedColValue(stockin_lb,STKIN_ID_POS,false) + ");";
+	}
+
 	if(!sqlstm.equals(""))
 	{
 		sqlhand.rws_gpSqlExecuter(sqlstm);
@@ -307,6 +320,56 @@ void printStockinLabels_birt(String pstkin)
 	newiframe.setId("stkinprintframe"); newiframe.setWidth("100%");	newiframe.setHeight("600px");
 	newiframe.setSrc(thesrc); newiframe.setParent(stkinprintholder);
 	stkinprintoutput.open(printlocas_b);
+}
+
+/**
+ * Group selected STKIN from listbox into the next GRN-id . Next GRN-id get from getNext_GRN_id() which will
+ * do a select-max()+1 on tblStockInMaster.grn_id
+ */
+void groupStkin_formGRN()
+{
+	if(!lbhand.check_ListboxExist_SelectItem(stockins_holder,"stockin_lb")) return;
+	ts = stockin_lb.getSelectedItems().toArray(); // hardcoded listbox ID with selected items
+	stkin_list = "";
+	warngotgrn = tiethem = false;
+	for(i=0; i<ts.length; i++)
+	{
+		stkin = lbhand.getListcellItemLabel(ts[i],STKIN_ID_POS);
+		poref = lbhand.getListcellItemLabel(ts[i],STKIN_REF_POS); // get PO ref to check same or not, not use now.. later
+		grnid = lbhand.getListcellItemLabel(ts[i],STKIN_GRN_POS);
+
+		if(!grnid.equals("")) warngotgrn = true; // if some STKIN already tied to GRN, warn/get-confirmation from user later
+
+		stkin_list += stkin + ",";
+	}
+	try { stkin_list = stkin_list.substring(0,stkin_list.length()-1); } catch (Exception e) {}
+
+	if(warngotgrn)
+	{
+		if(Messagebox.show("Some of the STKIN you have selected is already tied to a GRN, do you want to modify them?", "Are you sure?",
+			Messagebox.YES | Messagebox.NO, Messagebox.QUESTION) == Messagebox.YES) tiethem = true;
+	}
+	else
+	{
+		tiethem = true; // if STKIN selected not tie to any GRN .. go ahead, tie them
+	}
+
+	if(tiethem)
+	{
+		nextgrnid = getNext_GRN_id(); // rlmsql.zs
+		sqlstm = "update tblStockInMaster set grn_id=" + nextgrnid + " where Id in (" + stkin_list + ");";
+		sqlhand.rws_gpSqlExecuter(sqlstm);
+		refreshThings();
+	}
+}
+
+/**
+ * stkinhds is defined in itemsfunc.zs . STKIN listing header
+ */
+void exportAll_STKIN()
+{
+	if(stockins_holder.getFellowIfAny("stockin_lb") != null)
+		exportExcelFromListbox(stockin_lb, kasiexport, stkinhds, "STKIN_LIST.xls","STKIN");
 }
 
 ]]>
@@ -457,6 +520,11 @@ void printStockinLabels_birt(String pstkin)
 					<textbox id="stkinnum_tb" sclass="k9" width="60%" />
 					<button label="by STKIN only" sclass="k9mo" onClick="listout_pop.close(); listStockIn(2)" />
 				</row>
+				<row style="${NEWSTOCKITEM_BACKGROUND}" spans="1,2,1">
+					<label value="GRN-ID" sclass="wbo" />
+					<textbox id="grnid_tb" sclass="k9" width="60%" />
+					<button label="by GRN-ID only" sclass="k9mo" onClick="listout_pop.close(); listStockIn(3)" />
+				</row>
 			</rows>
 		</grid>
 	</div>
@@ -483,6 +551,7 @@ void printStockinLabels_birt(String pstkin)
 		<vbox>
 			<button id="setvtoday_b" label="Set today date" sclass="k9mo" onClick="stkin_doFunc(self.getId())" />
 			<button id="setdraft_b" label="Set to DRAFT" sclass="k9mo" onClick="stkin_doFunc(self.getId())" />
+			<button id="cleargrnid_b" label="Clear GRN id" sclass="k9mo" onClick="stkin_doFunc(self.getId())" />
 			<button id="delstkin_b" label="DELETE" sclass="k9mo" onClick="stkin_doFunc(self.getId())" />
 		</vbox>
 	</div>
@@ -550,6 +619,8 @@ void printStockinLabels_birt(String pstkin)
 			<button id="commitstkin_b" label="COMMIT" sclass="k9mo" onClick="stkin_doFunc(self.getId())" />
 			<button label="PUT AWAY STOCK" sclass="k9mo" visible="true" onClick="putawaypop.open(self)" />
 			<separator width="10px" />
+			<button label="Group STKIN - GRN" sclass="k9mo" onClick="groupStkin_formGRN()" />
+			<button label="Export list" sclass="k9mo" onClick="exportAll_STKIN()" />
 			<button label="View PO" sclass="k9mo" visible="true" onClick="viewPO_small(glob_stkin_ref)" />
 			<button id="adminbutt" label="ADMIN" sclass="k9mo" style="color:#EE1D1D" onClick="adminpop.open(self)" visible="false" />
 		</hbox>
@@ -609,7 +680,7 @@ void printStockinLabels_birt(String pstkin)
 		</hbox>
 	</div>
 	<div id="windowsholder" />
-
+	<div id="kasiexport" visible="false" />
 <zscript>
 <![CDATA[
 

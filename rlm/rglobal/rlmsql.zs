@@ -736,3 +736,39 @@ void downloadFile(Div ioutdiv, String ifilename, String irealfn)
 	newiframe.setParent(ioutdiv);
 	newiframe.setContent(amedia);
 }
+
+/**
+ * Get the next tblStockInMaster.grn_id , when null, return 1, the first GRN
+ * @return the next grn_id
+ */
+String getNext_GRN_id()
+{
+	retval = "";
+	sqlstm = "select max(grn_id)+1 as nextgrnid from tblStockInMaster;";
+	r = sqlhand.rws_gpSqlFirstRow(sqlstm);
+	if(r.get("nextgrnid") == null) retval = "1";
+	else retval = r.get("nextgrnid").toString();
+	return retval;
+}
+
+/**
+ * Get selected listbox items, column values. Either return quoted or unquoted string -
+ * use in SQL statement or audit-log usually
+ * @param  pLb     listbox with selected items
+ * @param  pCol    which column to get value from
+ * @param  pQuoted true=single-quote the value, false=no quote
+ * @return         selected items value separated by comma and quoted/unquotec
+ */
+String getListbox_SelectedColValue(Listbox pLb, int pCol, boolean pQuoted)
+{
+	retval = "";
+	ts = pLb.getSelectedItems().toArray();
+	for(i=0; i<ts.length; i++)
+	{
+		tval = lbhand.getListcellItemLabel(ts[i],pCol);
+		retval += ((pQuoted) ? ("'" + tval + "',") : (tval + ","));
+	}
+	try { retval = retval.substring(0,retval.length()-1); } catch (Exception e) {}
+	return retval;
+}
+

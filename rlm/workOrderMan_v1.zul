@@ -4,6 +4,7 @@
 <zscript src="rglobal/rglobal.zs" />
 <zscript src="rglobal/formMaker_v1.zs" />
 <zscript src="rglobal/rlmsql.zs" />
+<zscript src="rglobal/uploadedWorksheet_v1.zs" />
 <zscript src="rglobal/customerSelector.zs" />
 <zscript src="rglobal/stkoutfunc.zs" />
 <zscript src="rglobal/wofuncs.zs" />
@@ -21,6 +22,8 @@ MYPANEL = "worksoriderpanel";
  * @since 09/09/2015
  * @notes
  * 05/11/2015: button to submit on-site WO to dispatch-pickup table
+ * 10/12/2015: contractor field added to keep track of contractor which will claim for certain handling-fees on work-order if items
+ * 							are returned to HQ for repair
 */
 import java.util.*;
 import java.text.*;
@@ -191,7 +194,7 @@ void woFunc(String iwhat)
 			"address2='" + d[3] + "', address3='" + d[4] + "', address4='" + d[5] + "', contact='" + d[6] + "', telephone='" + d[7] + "', email='" + d[8] + "', " +
 			"work_type='" + d[9] + "', asc_user='" + d[10] + "', model='" + d[11] + "', serial_no='" + d[12] + "', warrantycard='" + d[13] + "', " +
 			"remarks='" + d[14] + "', priority='" + d[15] + "', technician='" + d[16] + "', purchase_date='" + d[17] + "', warranty_status='" + d[18] + "', " +
-			"appointment_date='" + d[19] + "', appointment_time='" + d[20] + "', dealer_ref='" + d[21] + "' " +
+			"appointment_date='" + d[19] + "', appointment_time='" + d[20] + "', dealer_ref='" + d[21] + "', contractor='" + d[22] + "' " +
 			"where origid=" + glob_sel_workorder;
 
 			if(DEBUG_MODE) debugbox.setValue(sqlstm);
@@ -419,6 +422,15 @@ void submitPickupOrder()
 	putNagText("Onsite appointment/pickup order submitted..");
 }
 
+/**
+ * Export whatever work-orders in listbox to EXCEL - uses wofuncs.wohds1 as the header for worksheet
+ */
+void exportAll_Workorders()
+{
+	if(workorder_holder.getFellowIfAny("wo_lb") != null)
+		exportExcelFromListbox(wo_lb, kasiexport, wohds1, "workorders.xls","workorders");
+}
+
 ]]>
 </zscript>
 
@@ -535,9 +547,9 @@ void submitPickupOrder()
 <popup id="woreports_pop">
 	<div sclass="shadowbox" style="background:#F0D126" >
 		<vbox>
-			<button label="Export work-orders" sclass="k9mo" />
-			<button label="Generate on-call work-orders list" sclass="k9mo" />
-			<button label="Generate outsource work-orders list" sclass="k9mo" />
+			<button label="Export work-orders" sclass="k9mo" onClick="exportAll_Workorders()" />
+			<button label="TD: Generate on-call work-orders list" sclass="k9mo" />
+			<button label="TD: Generate outsource work-orders list" sclass="k9mo" />
 		</vbox>
 	</div>
 </popup>
@@ -689,9 +701,11 @@ void submitPickupOrder()
 							<label value="Warranty status" sclass="wbo" />
 							<listbox id="w_warranty_status" sclass="k9" mold="select" />
 						</row>
-						<row style="${WODETAIL_STYLE}" spans="1,3">
+						<row style="${WODETAIL_STYLE}" >
 							<label value="Dealer ref." sclass="wbo" />
 							<textbox id="w_dealer_ref" sclass="k9" />
+							<label value="Contractor" sclass="wbo" />
+							<listbox id="w_contractor" mold="select" sclass="k9" />
 						</row>
 						<row style="${WODETAIL_STYLE}" spans="4">
 							<label value="Problem description" sclass="wbo" />
@@ -803,6 +817,7 @@ void submitPickupOrder()
 	<timer id="nagtimer" delay="${NAG_TIMER_DELAY}" repeats="true" onTimer="nagtimerFunc()" />
 
 	<div id="windowsholder" />
+	<div id="kasiexport" visible="false" />
 	<timer id="maintimer" delay="${TIMER_DELAY}" repeats="true" onTimer="timerFunc()" />
 <zscript>
 <![CDATA[
@@ -817,12 +832,12 @@ initIRIS_selector();
 Object[] wocustomermetaboxes = { 
 	w_ar_code, w_customer_name, w_address1, w_address2, w_address3, w_address4,
 	w_contact, w_telephone, w_email, w_work_type, w_asc_user, w_model, w_serial_no, w_warrantycard, w_remarks, w_priority, w_technician, w_purchase_date,
-	w_warranty_status, w_appointment_date, w_appointment_time, w_dealer_ref };
+	w_warranty_status, w_appointment_date, w_appointment_time, w_dealer_ref, w_contractor };
 
 String[] wocustomermfields = {
 	"ar_code", "customer_name", "address1", "address2", "address3", "address4",
 	"contact", "telephone", "email", "work_type", "asc_user", "model", "serial_no", "warrantycard", "remarks", "priority", "technician", "purchase_date",
-	"warranty_status", "appointment_date", "appointment_time", "dealer_ref" };
+	"warranty_status", "appointment_date", "appointment_time", "dealer_ref", "contractor" };
 
 Object[] woextrameta = { w_close_work, w_close_by, w_deliverdate, w_delivery_mode, w_delivery_bill };
 String[] woextramfields = { "close_work", "close_by", "deliverdate", "delivery_mode", "delivery_bill" };
@@ -833,6 +848,7 @@ luhand.populateListbox_ByLookup(w_asc_user, "WO_ASC_OUTSOURCE", 2);
 luhand.populateListbox_ByLookup(wo_delivery_mode, "DELIVERY_MODE", 2);
 luhand.populateListbox_ByLookup(w_technician,"TECHNICIANS",2);
 luhand.populateListbox_ByLookup(w_warranty_status,"WARRANTY_STATUS",2);
+luhand.populateListbox_ByLookup(w_contractor,"SERVICE_CONTRACTOR",2);
 
 fillStockMasterSelectorDropdowns(); // stocklister.zs
 

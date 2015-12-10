@@ -30,6 +30,11 @@ WORKAREA_BACKGROUND = "background:#208EC7";
 SUPP_FORM_STYLE = "background:#D77272";
 SUPP_FORM_STYLE2 = "background:#DE3E0E";
 
+// Work-order status
+WO_DRAFT = "DRAFT";
+WO_COMMIT = "COMMIT";
+WO_DONE = "DONE";
+
 // Work-order stage names
 WOSTAGE_NEW = "NEW";
 WOSTAGE_WIP = "WIP";

@@ -54,7 +54,7 @@ Object showWorkOrder_meta(String iwo)
 
 Object[] wohds2 = // for other modu - show min WO details just for picking
 {
-	new listboxHeaderWidthObj(WORKORDER_PREFIX,true,"60px"),
+	new listboxHeaderWidthObj(WORKORDER_PREFIX,true,"50px"),
 	new listboxHeaderWidthObj("Dated",true,"70px"),
 	new listboxHeaderWidthObj("Customer",true,""),
 	new listboxHeaderWidthObj("Contact",true,""),
@@ -69,12 +69,14 @@ Object[] wohds2 = // for other modu - show min WO details just for picking
 	new listboxHeaderWidthObj("Tech",false,"70px"),
 	new listboxHeaderWidthObj("WO.Stage",false,"70px"),
 	new listboxHeaderWidthObj("WO.Start",false,"70px"),
-	new listboxHeaderWidthObj("WH.Stage",false,"70px"), // 15
+	new listboxHeaderWidthObj("Contractor",false,"70px"),
+	new listboxHeaderWidthObj("Close",false,"70px"),
+	new listboxHeaderWidthObj("WH.Stage",false,"70px"), // 17
 };
 
 Object[] wohds1 =
 {
-	new listboxHeaderWidthObj(WORKORDER_PREFIX,true,"60px"),
+	new listboxHeaderWidthObj(WORKORDER_PREFIX,true,"50px"),
 	new listboxHeaderWidthObj("Dated",true,"70px"),
 	new listboxHeaderWidthObj("Customer",true,""),
 	new listboxHeaderWidthObj("Contact",true,""),
@@ -89,21 +91,14 @@ Object[] wohds1 =
 	new listboxHeaderWidthObj("Tech",true,"70px"),
 	new listboxHeaderWidthObj("WO.Stage",true,"70px"),
 	new listboxHeaderWidthObj("WO.Start",true,"70px"),
-	new listboxHeaderWidthObj("WH.Stage",true,"70px"), // 15
+	new listboxHeaderWidthObj("Contractor",true,"70px"),
+	new listboxHeaderWidthObj("Close",true,"70px"),
+	new listboxHeaderWidthObj("WH.Stage",true,"70px"), // 16, this one is manually retrieve and populate
 };
-WO_ORIGID_POS = 0;
-WO_CUSTOMER_POS = 2;
-WO_WORKTYPE_POS = 4;
-WO_SERIALNO_POS = 5;
-WO_MODEL_POS = 6;
-WO_STATUS_POS = 8;
-WO_ARCODE_POS = 9;
-WO_PRIORITY_POS = 10;
-WO_USERNAME_POS = 11;
-WO_TECHNICIAN_POS = 12;
-WO_STAGE_POS = 13;
-WO_TECHPICKUP_POS = 14;
-WO_WHSTAGE_POS = 15;
+WO_ORIGID_POS = 0; WO_CUSTOMER_POS = 2; WO_WORKTYPE_POS = 4; WO_SERIALNO_POS = 5;
+WO_MODEL_POS = 6; WO_STATUS_POS = 8; WO_ARCODE_POS = 9; WO_PRIORITY_POS = 10;
+WO_USERNAME_POS = 11; WO_TECHNICIAN_POS = 12; WO_STAGE_POS = 13; WO_TECHPICKUP_POS = 14;
+WO_CONTRACTOR_POS = 15; WO_WHSTAGE_POS = 17; 
 
 last_list_wo = 0;
 
@@ -148,13 +143,11 @@ void listWorkOrders(Div iholder, String ilbid, Datebox istart, Datebox iend,
 	Listbox newlb = lbhand.makeVWListbox_Width(iholder, hds, ilbid, 3);
 
 	sqlstm = "select origid,datecreated,customer_name,ar_code,contact," +
-	"work_type,serial_no,model,warranty_status,status,stage,priority,username,technician,stage_date from workorders ";
+	"work_type,serial_no,model,warranty_status,status,stage,priority,username,technician,stage_date,contractor,close_work from workorders ";
 
 	unm = "PADMIN";
 	try { unm = useraccessobj.username.toUpperCase(); } catch (Exception e) {}
-
-	sdate = kiboo.getDateFromDatebox(istart);
-	edate = kiboo.getDateFromDatebox(iend);
+	sdate = kiboo.getDateFromDatebox(istart); edate = kiboo.getDateFromDatebox(iend);
 
 	sti = "";
 	try { sti = Integer.parseInt(ibywo.getValue().trim()).toString(); } catch (Exception e) {}
@@ -166,8 +159,8 @@ void listWorkOrders(Div iholder, String ilbid, Datebox istart, Datebox iend,
 		case 1: // by start-end date and search-text if any
 			sqlstm += "where datecreated between '" + sdate + " 00:00:00' and '" + edate + " 23:59:00' ";
 			if(!st.equals(""))
-				sqlstm += " and (customer_name like '%" + st + "%' or work_type like '%" + st + "%' or stage like '%" + st + "%');";
-
+				sqlstm += " and (customer_name like '%" + st + "%' or work_type like '%" + st + "%' or stage like '%" + st + "%' " +
+				"or contractor like '%" + st + "%');";
 			break;
 
 		case 2:
@@ -197,7 +190,7 @@ void listWorkOrders(Div iholder, String ilbid, Datebox istart, Datebox iend,
 	newlb.addEventListener("onSelect", workorderlb_cliker);
 
 	String[] fl = { "origid","datecreated","customer_name","contact","work_type",
-	"serial_no","model","warranty_status","status","ar_code","priority","username","technician","stage","stage_date" };
+	"serial_no","model","warranty_status","status","ar_code","priority","username","technician","stage","stage_date","contractor","close_work" };
 	ArrayList kabom = new ArrayList();
 
 	for(d : r)

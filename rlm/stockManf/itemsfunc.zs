@@ -29,7 +29,7 @@ Object[] stkinhds =
 {
 	new listboxHeaderWidthObj("STKIN",true,"80px"),
 	new listboxHeaderWidthObj("Dated",true,"80px"),
-	new listboxHeaderWidthObj("Ref",true,""),
+	new listboxHeaderWidthObj("Ref",true,""), // 2
 	new listboxHeaderWidthObj("Supplier / Desc",true,""),
 	new listboxHeaderWidthObj("StockCode",true,"200px"),
 	new listboxHeaderWidthObj("Qty",true,"70px"),
@@ -40,18 +40,22 @@ Object[] stkinhds =
 	new listboxHeaderWidthObj("curcode",false,""), // 10
 	new listboxHeaderWidthObj("exhrate",false,""),
 	new listboxHeaderWidthObj("uprice",false,""),
-	new listboxHeaderWidthObj("Struct",true,""),
+	new listboxHeaderWidthObj("GRN",true,"60px"), // 13
+	new listboxHeaderWidthObj("Struct",true,""), // 14
 };
 STKIN_ID_POS = 0; STKIN_REF_POS = 2; STKIN_DESC_POS = 3;
 STKIN_STOCKNAME_POS = 4; STKIN_USER_POS = 6; STKIN_STATUS_POS = 7;
 STKID_POS = 9; STKIN_CURCODE_POS = 10; STKIN_EXCHANGERATE_POS = 11;
-STKIN_UNITPRICE_POS = 12; STKIN_STRUCT_POS = 13;
+STKIN_UNITPRICE_POS = 12; STKIN_GRN_POS = 13; STKIN_STRUCT_POS = 14;
 
 class stkinclik implements org.zkoss.zk.ui.event.EventListener
 {
 	public void onEvent(Event event) throws UiException
 	{
-		stkin_CallBack(event.getReference());
+		try
+		{
+			stkin_CallBack(event.getReference());
+		} catch (Exception e) {}
 	}
 }
 stockinclicker = new stkinclik();
@@ -70,6 +74,7 @@ stkindoublecliker = new stkindobuleclik();
 
 /**
  * List stock-in entries - the items quantity uses a sub-select-count into tblStockInDetail by parent_id
+ * Uses hardcoded UI components in calling module - remember
  * @param itype listing type - check switch statement
  */
 void listStockIn(int itype)
@@ -78,14 +83,13 @@ void listStockIn(int itype)
 	last_show_stockin = itype;
 
 	st = kiboo.replaceSingleQuotes(searhtxt_tb.getValue().trim());
-	sdate = kiboo.getDateFromDatebox(startdate);
-	edate = kiboo.getDateFromDatebox(enddate);
+	sdate = kiboo.getDateFromDatebox(startdate); edate = kiboo.getDateFromDatebox(enddate);
 
 	Listbox newlb = lbhand.makeVWListbox_Width(stockins_holder, stkinhds, "stockin_lb", 3);
 
 	sqlstm = "select tm.Id,tm.Reference,tm.Description, (select Stock_Code from StockMasterDetails where ID=stk_id) as stock_code," +
 	"FLOOR((select count(*) from tblStockInDetail where parent_id = tm.Id)) as childqty," +
-	"tm.Posted,tm.username,tm.stk_id,tm.EntryDate,tm.status, tm.curcode, tm.exchange_rate, tm.unitprice from tblStockInMaster tm ";
+	"tm.Posted,tm.username,tm.stk_id,tm.EntryDate,tm.status, tm.curcode, tm.exchange_rate, tm.unitprice, tm.grn_id from tblStockInMaster tm ";
 
 	switch(itype)
 	{
@@ -100,14 +104,20 @@ void listStockIn(int itype)
 			try { sti = Integer.parseInt(stkinnum_tb.getValue().trim()).toString(); sqlstm += "where tm.Id=" + sti; }
 			catch (Exception e) { stkinnum_tb.setValue(""); return; }
 			break;
+
+		case 3: // by GRN-ID only
+			try { sgi = Integer.parseInt(grnid_tb.getValue().trim()).toString(); sqlstm += "where tm.grn_id=" + sgi; }
+			catch (Exception e) { grnid_tb.getValue(""); return; }
+			break;
 	}
 
 	r = sqlhand.rws_gpSqlGetRows(sqlstm);
 	if(r.size() == 0) return;
-	newlb.setRows(20); newlb.setMold("paging"); // newlb.setMultiple(true); newlb.setCheckmark(true); 
+	newlb.setRows(20); newlb.setMold("paging"); newlb.setMultiple(true); newlb.setCheckmark(true);
 	newlb.addEventListener("onSelect", stockinclicker);
 
-	String[] fl = { "Id", "EntryDate", "Reference", "Description", "stock_code", "childqty", "username", "status", "Posted","stk_id","curcode","exchange_rate","unitprice" };
+	String[] fl = { "Id", "EntryDate", "Reference", "Description", "stock_code", "childqty", "username", "status",
+		"Posted","stk_id","curcode","exchange_rate","unitprice","grn_id" };
 	ArrayList kabom = new ArrayList();
 
 	for(d : r)
